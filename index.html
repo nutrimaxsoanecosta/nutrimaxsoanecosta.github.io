@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulário Quiz</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <style>
+    :root {
+      --primary-color: #005088;
+      --bg-color: #f0f2f5;
+    }
+    body { 
+      background-color: var(--bg-color); 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 20px 0;
+    }
+    .quiz-container {
+      max-width: 700px;
+      width: 100%;
+      margin: auto;
+    }
+    .card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    .progress {
+      height: 8px;
+      border-radius: 4px;
+      margin-bottom: 30px;
+    }
+    .bloco-tag {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      color: var(--primary-color);
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .question-text {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 25px;
+    }
+    .option-item {
+      margin-bottom: 12px;
+    }
+    .btn-nav {
+      padding: 12px 30px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .btn-next { background-color: var(--primary-color); color: white; }
+    .btn-next:hover { background-color: #003d66; color: white; }
+    
+    .hidden { display: none !important; }
+    
+    .custom-option {
+      border: 2px solid #e9ecef;
+      padding: 15px;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: block;
+    }
+    .custom-option:hover { background-color: #f8f9fa; border-color: var(--primary-color); }
+    
+    input[type="radio"]:checked + .custom-option {
+      background-color: #e7f1ff;
+      border-color: var(--primary-color);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container quiz-container">
+    <div class="progress">
+      <div id="progressBar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+    </div>
+
+    <div id="loading" class="text-center p-5 bg-white rounded-4 shadow-sm">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-3 mb-0 fw-semibold text-secondary">Preparando suas perguntas...</p>
+    </div>
+
+    <form id="quizForm" class="hidden">
+      
+      <div id="alertContainer" class="hidden"></div>
+      <div id="questionWrapper" class="animate__animated animate__fadeIn"></div>
+
+      <div class="d-flex justify-content-between mt-4">
+        <button type="button" id="btnPrev" class="btn btn-outline-secondary btn-nav hidden" onclick="mudarPergunta(-1)">Anterior</button>
+        <button type="button" id="btnNext" class="btn btn-next btn-nav ms-auto" onclick="mudarPergunta(1)">Próxima</button>
+        <button type="submit" id="btnSubmit" class="btn btn-success btn-nav ms-auto hidden">Finalizar e Enviar</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // ================= CONFIGURAÇÃO =================
+    // COLE AQUI A URL DO SEU WEB APP EXECUTÁVEL DO APPS SCRIPT (Termina com /exec)
+    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbw7v79BFWxfMGayISsQKskuECx9NmPq0otFfhSn3seds-uFI8p_7TIGTpGJILDLq4Xh/exec';
+    
+    // Configuração do WhatsApp
+    const numeroWhatsapp = '5527992657445'; 
+    // ================================================
+
+    let perguntas = [];
+    let indiceAtual = 0;
+    let respostasTotal = {};
+    let historicoIndices = []; 
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const formElement = document.getElementById('quizForm');
+      if (formElement) {
+        formElement.onsubmit = executarEnvioFormulario;
+      }
+
+      obterPerguntasDoServidor();
+    });
+
+    // Modificado para buscar via fetch API no Google Apps Script
+    function obterPerguntasDoServidor() {
+      fetch(URL_APPS_SCRIPT, {
+      method: 'GET',
+      redirect: 'follow' // Essencial
+    }).then(response => {
+          if (!response.ok) {
+            throw new Error('Erro na rede ou URL inválida.');
+          }
+          return response.json();
+        })
+        .then(dados => {
+          inicializarQuiz(dados);
+        })
+        .catch(erro => {
+          exibirErroServidor(erro);
+        });
+    }
+
+    function exibirFeedbackMensagem(mensagem, tipo = 'warning') {
+      const alertContainer = document.getElementById('alertContainer');
+      if (!alertContainer) return;
+
+      alertContainer.innerHTML = '<div class="alert alert-' + tipo + ' d-flex align-items-center animate__animated animate__headShake shadow-sm mb-3" role="alert" style="border-radius: 12px;">' +
+        '<div class="fw-semibold">' +
+          (tipo === 'danger' ? '❌ ' : '⚠️ ') + mensagem +
+        '</div>' +
+      '</div>';
+      alertContainer.classList.remove('hidden');
+      alertContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function limparFeedbackMensagem() {
+      const alertContainer = document.getElementById('alertContainer');
+      if (alertContainer) {
+        alertContainer.classList.add('hidden');
+        alertContainer.innerHTML = '';
+      }
+    }
+
+    function exibirErroServidor(erro) {
+      console.error(erro);
+      const loadingDiv = document.getElementById('loading');
+      if (loadingDiv) {
+        loadingDiv.innerHTML = '<div class="alert alert-danger m-0 text-start">' +
+          '<h5 class="alert-heading">❌ Erro ao Carregar Perguntas</h5>' +
+          '<p class="mb-2"><strong>Detalhes:</strong> ' + erro.message + '</p>' +
+          '<hr>' +
+          '<small class="d-block text-muted">Certifique-se de que o Web App do Apps Script está publicado como "Qualquer pessoa" (Anyone) e que a URL está correta.</small>' +
+        '</div>';
+      }
+    }
+
+    function inicializarQuiz(dados) {
+      const loadingDiv = document.getElementById('loading');
+      const formDiv = document.getElementById('quizForm');
+
+      if (!dados || dados.length === 0) {
+        if (loadingDiv) {
+          loadingDiv.innerHTML = '<div class="alert alert-warning m-0">Nenhuma pergunta localizada para hoje com os critérios de filtro.</div>';
+        }
+        return;
+      }
+      
+      perguntas = dados;
+      
+      if (loadingDiv) loadingDiv.classList.add('hidden');
+      if (formDiv) formDiv.classList.remove('hidden');
+      
+      indiceAtual = 0;
+      if (devePularPergunta(indiceAtual)) {
+        indiceAtual = encontrarProximoIndiceValido(indiceAtual, 1);
+      }
+      
+      renderizarPergunta();
+    }
+
+    function renderizarPergunta() {
+      if (indiceAtual >= perguntas.length || indiceAtual < 0) return;
+
+      limparFeedbackMensagem();
+
+      const p = perguntas[indiceAtual];
+      const wrapper = document.getElementById('questionWrapper');
+      if (!wrapper) return;
+      
+      wrapper.classList.remove('animate__fadeIn');
+      void wrapper.offsetWidth; 
+      wrapper.classList.add('animate__fadeIn');
+
+      let html = '<div class="card p-4 p-md-5">' +
+        '<span class="bloco-tag">' + p.bloco + '</span>' +
+        '<div class="question-text">' + p.pergunta + '</div>' +
+        '<div class="options-container">';
+
+      if (p.opcoes && p.opcoes.length > 0 && p.opcoes[0] !== "") {
+        p.opcoes.forEach((opcao, i) => {
+          const checked = respostasTotal[p.id] === opcao ? 'checked' : '';
+          html += '<div class="option-item">' +
+            '<input class="form-check-input hidden" type="radio" name="' + p.id + '" id="opt_' + i + '" value="' + opcao + '" ' + checked + ' onchange="salvarResposta(\'' + p.id + '\', \'' + opcao + '\')">' +
+            '<label class="custom-option" for="opt_' + i + '">' + opcao + '</label>' +
+          '</div>';
+        });
+      } else {
+        const valorTexto = respostasTotal[p.id] || '';
+        html += '<textarea class="form-control form-control-lg" rows="4" placeholder="Sua resposta aqui..." ' +
+          'onkeyup="salvarResposta(\'' + p.id + '\', this.value)">' + valorTexto + '</textarea>';
+      }
+
+      html += '</div></div>';
+      wrapper.innerHTML = html;
+      
+      atualizarInterface();
+    }
+
+    function salvarResposta(id, valor) {
+      respostasTotal[id] = valor;
+      if(valor.trim() !== "") {
+        limparFeedbackMensagem();
+      }
+    }
+
+    function devePularPergunta(idx) {
+      const perguntaAvaliada = perguntas[idx];
+      const pai = perguntas.find(p => {
+        if (!p.proximaRaw) return false;
+        const matches = p.proximaRaw.match(/[A-Za-z]+\d+/g);
+        return matches && matches.map(m => m.trim()).includes(perguntaAvaliada.id);
+      });
+
+      if (!pai) return false;
+
+      const respostaDoPai = respostasTotal[pai.id];
+      if (!respostaDoPai) return true;
+
+      const condicionalLimpa = pai.proximaRaw.toLowerCase();
+      const respostaLimpa = respostaDoPai.toLowerCase().trim();
+      const idFilhoLimpo = perguntaAvaliada.id.toLowerCase();
+
+      const possuiMatchCondicional = condicionalLimpa.includes(respostaLimpa) && condicionalLimpa.includes(idFilhoLimpo);
+      
+      if (!possuiMatchCondicional) {
+        limparRespostasEmCascata(perguntaAvaliada.id);
+        return true; 
+      }
+
+      return false;
+    }
+
+    function limparRespostasEmCascata(idPergunta) {
+      if (respostasTotal[idPergunta]) delete respostasTotal[idPergunta];
+      
+      perguntas.forEach(p => {
+        if (p.proximaRaw) {
+          const matches = p.proximaRaw.match(/[A-Za-z]+\d+/g);
+          if (matches && matches.map(m => m.trim()).includes(idPergunta)) {
+            limparRespostasEmCascata(p.id);
+          }
+        }
+      });
+    }
+
+    function encontrarProximoIndiceValido(indicePartida, direcao) {
+      let idx = indicePartida + direcao;
+      while (idx >= 0 && idx < perguntas.length) {
+        if (!devePularPergunta(idx)) {
+          return idx;
+        }
+        idx += direcao;
+      }
+      return idx; 
+    }
+
+    function mudarPergunta(direcao) {
+      if (direcao === 1) {
+        const p = perguntas[indiceAtual];
+        if (!respostasTotal[p.id] || respostasTotal[p.id].trim() === "") {
+          exibirFeedbackMensagem("Esta pergunta é obrigatória para prosseguir!");
+          return;
+        }
+        
+        historicoIndices.push(indiceAtual);
+        indiceAtual = encontrarProximoIndiceValido(indiceAtual, 1);
+      } else {
+        if (historicoIndices.length > 0) {
+          indiceAtual = historicoIndices.pop();
+        } else {
+          indiceAtual = encontrarProximoIndiceValido(indiceAtual, -1);
+        }
+      }
+
+      renderizarPergunta();
+    }
+
+    function atualizarInterface() {
+      const total = perguntas.length;
+      const progresso = ((indiceAtual + 1) / total) * 100;
+      
+      const progressBar = document.getElementById('progressBar');
+      const btnPrev = document.getElementById('btnPrev');
+      const btnNext = document.getElementById('btnNext');
+      const btnSubmit = document.getElementById('btnSubmit');
+
+      if (progressBar) progressBar.style.width = progresso + '%';
+      if (btnPrev) btnPrev.classList.toggle('hidden', historicoIndices.length === 0);
+
+      const proximoValido = encontrarProximoIndiceValido(indiceAtual, 1);
+
+      if (proximoValido >= total) {
+        if (btnNext) btnNext.classList.add('hidden');
+        if (btnSubmit) btnSubmit.classList.remove('hidden');
+      } else {
+        if (btnNext) btnNext.classList.remove('hidden');
+        if (btnSubmit) btnSubmit.classList.add('hidden');
+      }
+    }
+
+    function executarEnvioFormulario(e) {
+      e.preventDefault();
+      
+      const p = perguntas[indiceAtual];
+      if (!respostasTotal[p.id] || respostasTotal[p.id].trim() === "") {
+        exibirFeedbackMensagem("Esta pergunta é obrigatória!");
+        return;
+      }
+
+      let mensagemFormatada = "*📋 FORMULÁRIO DE ACOMPANHAMENTO*\n\n";
+
+      perguntas.forEach((p, idx) => {
+        if (!devePularPergunta(idx) && respostasTotal[p.id] !== undefined) {
+          mensagemFormatada += `*${p.pergunta}*\n✍️ _${respostasTotal[p.id]}_\n\n`;
+        }
+      });
+
+      const mensagemUrlEncoded = encodeURIComponent(mensagemFormatada);
+
+      let urlWhatsapp = "https://api.whatsapp.com/send?text=" + mensagemUrlEncoded;
+      if (numeroWhatsapp && numeroWhatsapp.trim() !== "") {
+        urlWhatsapp += "&phone=" + numeroWhatsapp.replace(/\D/g, '');
+      }
+
+      window.open(urlWhatsapp, '_blank');
+
+      document.body.innerHTML = '<div class="container text-center quiz-container">' +
+        '<div class="card p-5 animate__animated animate__bounceIn">' +
+          '<h2 class="text-success">Respostas Prontas!</h2>' +
+          '<p class="mt-2">Você foi redirecionado para o WhatsApp para enviar suas respostas.</p>' +
+          '<p class="text-muted small">Se a janela não abriu, verifique se o seu navegador bloqueou o pop-up.</p>' +
+          '<button class="btn btn-primary mt-3" onclick="window.location.reload()">Responder Novamente</button>' +
+        '</div>' +
+      '</div>';
+    }
+  </script>
+</body>
+</html>
