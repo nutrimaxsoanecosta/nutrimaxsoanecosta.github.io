@@ -226,7 +226,7 @@
 
   <script>
     // ================= CONFIGURAÇÃO =================
-    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbw7v79BFWxfMGayISsQKskuECx9NmPq0otFfhSn3seds-uFI8p_7TIGTpGJILDLq4Xh/exec';
+    const URL_APPS_SCRIPT = 'https://script.google.com/macros/s/AKfycbx4B371fLeR1alNraPDg9RvA3Pjj9N8BLVUtHwKk5jrCh3pArG3bx_z3XCZ86GTmmSh/exec';
     const numeroWhatsapp = '5527992657445'; 
     const URL_ARQUIVO_LOGO = 'logo.txt'; 
     // ================================================
@@ -287,11 +287,47 @@
         return response.json();
       })
       .then(dados => {
-        inicializarQuiz(dados);
+        // Passa os dados recebidos pelo reconstrutor de árvore
+        const listaPlanificada = planificarPerguntas(dados);
+        inicializarQuiz(listaPlanificada);
       })
       .catch(erro => {
         exibirErroServidor(erro);
       });
+    }
+
+    /**
+     * Transforma o JSON estruturado em árvore em uma lista sequencial estável,
+     * injetando referências de controle condicional direto nos nós filhos.
+     */
+    function planificarPerguntas(listaOriginal, paiId = null, condicionalValores = null) {
+      let resultado = [];
+      
+      listaOriginal.forEach(item => {
+        // Criamos o objeto da pergunta atual copiando as propriedades básicas
+        let perguntaFormatada = {
+          id: item.id,
+          bloco: item.bloco,
+          pergunta: item.pergunta,
+          opcoes: item.opcoes || [],
+          paiId: paiId,
+          condicionalValores: condicionalValores
+        };
+        
+        resultado.push(perguntaFormatada);
+        
+        // Se houverem subperguntas configuradas de forma aninhada, processa recursivamente
+        if (item.subpergunta && item.subpergunta.length > 0) {
+          item.subpergunta.forEach(sub => {
+            if (sub.pergunta && sub.pergunta.length > 0) {
+              const subFilhosPlanificados = planificarPerguntas(sub.pergunta, item.id, sub.condicional);
+              resultado = resultado.concat(subFilhosPlanificados);
+            }
+          });
+        }
+      });
+      
+      return resultado;
     }
 
     function exibirFeedbackMensagem(mensagem, tipo = 'warning') {
@@ -415,26 +451,34 @@
       if(valor.trim() !== "") {
         limparFeedbackMensagem();
       }
+      // Força os botões a recalcularem se a resposta liberou uma subpergunta
+      atualizarInterface();
     }
 
+    /**
+     * Nova lógica de validação condicional adaptada para a estrutura flat
+     */
     function devePularPergunta(idx) {
       const perguntaAvaliada = perguntas[idx];
-      const pai = perguntas.find(p => {
-        if (!p.proximaRaw) return false;
-        const matches = p.proximaRaw.match(/[A-Za-z]+\d+/g);
-        return matches && matches.map(m => m.trim()).includes(perguntaAvaliada.id);
-      });
 
-      if (!pai) return false;
+      // Se não possui um pai definido, ela é uma pergunta de nível superior (obrigatória)
+      if (!perguntaAvaliada.paiId) return false;
 
-      const respostaDoPai = respostasTotal[pai.id];
+      // Se a pergunta pai também deve ser pulada, esta automaticamente deve ser pulada
+      const indicePai = perguntas.findIndex(p => p.id === perguntaAvaliada.paiId);
+      if (indicePai !== -1 && devePularPergunta(indicePai)) {
+        limparRespostasEmCascata(perguntaAvaliada.id);
+        return true;
+      }
+
+      const respostaDoPai = respostasTotal[perguntaAvaliada.paiId];
+      // Se o pai ainda não foi respondido, oculta o filho
       if (!respostaDoPai) return true;
 
-      const condicionalLimpa = pai.proximaRaw.toLowerCase();
-      const respostaLimpa = respostaDoPai.toLowerCase().trim();
-      const idFilhoLimpo = perguntaAvaliada.id.toLowerCase();
-
-      const possuiMatchCondicional = condicionalLimpa.includes(respostaLimpa) && condicionalLimpa.includes(idFilhoLimpo);
+      // Verifica se a resposta dada ao pai bate com alguma das regras condicionais que ativam o filho
+      const possuiMatchCondicional = perguntaAvaliada.condicionalValores.some(
+        valor => valor.toLowerCase().trim() === respostaDoPai.toLowerCase().trim()
+      );
       
       if (!possuiMatchCondicional) {
         limparRespostasEmCascata(perguntaAvaliada.id);
@@ -448,11 +492,8 @@
       if (respostasTotal[idPergunta]) delete respostasTotal[idPergunta];
       
       perguntas.forEach(p => {
-        if (p.proximaRaw) {
-          const matches = p.proximaRaw.match(/[A-Za-z]+\d+/g);
-          if (matches && matches.map(m => m.trim()).includes(idPergunta)) {
-            limparRespostasEmCascata(p.id);
-          }
+        if (p.paiId === idPergunta) {
+          limparRespostasEmCascata(p.id);
         }
       });
     }
@@ -489,9 +530,17 @@
       renderizarPergunta();
     }
 
-    function atualizarInterface() {
+function atualizarInterface() {
       const total = perguntas.length;
-      const progresso = ((indiceAtual + 1) / total) * 100;
+      
+      // Filtra dinamicamente as perguntas ativas baseadas nas respostas atuais
+      const perguntasAtivas = perguntas.filter((_, idx) => !devePularPergunta(idx));
+      const posicaoAtualAtiva = perguntasAtivas.findIndex(p => p.id === perguntas[indiceAtual].id);
+      
+      // Atualiza progresso baseado apenas no fluxo visível real
+      const progresso = perguntasAtivas.length > 0 
+        ? ((posicaoAtualAtiva + 1) / perguntasAtivas.length) * 100 
+        : 0;
       
       const progressBar = document.getElementById('progressBar');
       const btnPrev = document.getElementById('btnPrev');
@@ -501,12 +550,15 @@
       if (progressBar) progressBar.style.width = `${progresso}%`;
       if (btnPrev) btnPrev.classList.toggle('hidden', historicoIndices.length === 0);
 
+      // CORREÇÃO: Descobre se existe QUALQUER outra pergunta ativa após o índice atual
       const proximoValido = encontrarProximoIndiceValido(indiceAtual, 1);
 
       if (proximoValido >= total) {
+        // Se não houver mais nenhuma pergunta válida pela frente, finaliza
         if (btnNext) btnNext.classList.add('hidden');
         if (btnSubmit) btnSubmit.classList.remove('hidden');
       } else {
+        // Se ainda houver uma próxima pergunta (mesmo sendo subpergunta), continua avançando
         if (btnNext) btnNext.classList.remove('hidden');
         if (btnSubmit) btnSubmit.classList.add('hidden');
       }
