@@ -392,8 +392,8 @@ function QuizApp() {
     }
 
     if (!nextId) {
-      if (nextReturnStack.length > 0) {
-        const parentId = nextReturnStack.pop();
+      if (subPerguntaIds.has(idKey) && nextReturnStack.length > 0) {
+        const parentId = nextReturnStack[nextReturnStack.length - 1];
         const parentIdx = mainPerguntas.findIndex((p) => String(p.id) === String(parentId));
         
         if (parentIdx !== -1 && parentIdx < mainPerguntas.length - 1) {
@@ -424,9 +424,20 @@ function QuizApp() {
     const prevId = history[history.length - 1];
 
     executeTransition(() => {
-      if (returnStack.length > 0 && returnStack[returnStack.length - 1] === prevId) {
-        setReturnStack((prev) => prev.slice(0, -1));
-      }
+      setReturnStack((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1] === prevId) {
+          return prev.slice(0, -1);
+        }
+        if (subPerguntaIds.has(prevId)) {
+          const parentPergunta = Array.from(allPerguntasMap.values()).find((p) =>
+            p.respostas?.some((r) => String(r.pergunta?.id) === prevId)
+          );
+          if (parentPergunta) {
+            return [...prev, String(parentPergunta.id)];
+          }
+        }
+        return prev;
+      });
       setHistory((prev) => prev.slice(0, -1));
       setCurrentPerguntaId(prevId);
     });
