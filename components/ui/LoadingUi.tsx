@@ -7,7 +7,7 @@ export function LoadingUi() {
         <img
           src={LOGO_BASE64}
           alt="Logo"
-          className="h-48 w-auto object-contain mb-6 animate-pulse"
+          className="h-60 w-auto object-contain mb-6"
         />
       )}
       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1b532b] mb-4"/>
