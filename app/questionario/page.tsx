@@ -8,6 +8,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { LOGO_BASE64 } from '@/constants/logo';
 
 import { Pergunta, Resposta, TipoPerguntaEnum, PayloadAppsScript, FormularioHierarquico, Paciente } from '@/types/form';
+import { LoadingUi } from '../../components/ui/LoadingUi';
 
 function QuizApp() {
   const searchParams = useSearchParams();
@@ -757,7 +758,7 @@ function QuizApp() {
 
 export default function QuizPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-center">Carregando...</div>}>
+    <Suspense fallback={<LoadingUi />}>
       <QuizApp />
     </Suspense>
   );
