@@ -238,39 +238,50 @@ function QuizApp() {
   const currentRespostas = currentPergunta?.respostas || [];
   const isObrigatorio = currentPergunta ? Number(currentPergunta.obrigatorio) === 1 : false;
 
-  const isLastQuestion = useMemo(() => {
-    if (!currentPerguntaId || !currentPergunta) return false;
+  // Determina dinamicamente o ID da próxima pergunta com base nas respostas e na hierarquia
+  const calculateNextPerguntaId = (
+    pergId: string | null,
+    answers: Record<string, string | string[]>,
+    stack: string[]
+  ): string | null => {
+    if (!pergId) return null;
 
-    const idKey = String(currentPerguntaId);
-    const currentAnswer = userAnswers[idKey];
+    const perg = allPerguntasMap.get(String(pergId));
+    if (!perg) return null;
 
+    const idKey = String(pergId);
+    const currentAnswer = answers[idKey];
     let nextId: string | null = null;
 
-    if (Number(currentPergunta.tipoPergunta) === TipoPerguntaEnum.OBJETIVA && typeof currentAnswer === 'string') {
-      const selectedOption = currentRespostas.find((r) => r.textoResposta === currentAnswer);
+    // 1. Caso a pergunta seja Objetiva e leve para uma subpergunta
+    if (Number(perg.tipoPergunta) === TipoPerguntaEnum.OBJETIVA && typeof currentAnswer === 'string') {
+      const selectedOption = (perg.respostas || []).find((r) => r.textoResposta === currentAnswer);
       if (selectedOption?.pergunta?.id !== undefined && selectedOption?.pergunta?.id !== null) {
         nextId = String(selectedOption.pergunta.id);
       }
     }
 
+    // 2. Se não houver subpergunta, retoma o fluxo principal
     if (!nextId) {
-      if (returnStack.length > 0) {
-        const parentId = returnStack[returnStack.length - 1];
-        const parentIdx = mainPerguntas.findIndex((p) => String(p.id) === String(parentId));
-        
-        if (parentIdx !== -1 && parentIdx < mainPerguntas.length - 1) {
-          nextId = String(mainPerguntas[parentIdx + 1].id);
-        }
-      } else {
-        const mainIdx = mainPerguntas.findIndex((p) => String(p.id) === idKey);
-        if (mainIdx !== -1 && mainIdx < mainPerguntas.length - 1) {
-          nextId = String(mainPerguntas[mainIdx + 1].id);
-        }
+      let referenceId = idKey;
+      if (subPerguntaIds.has(idKey) && stack.length > 0) {
+        referenceId = stack[stack.length - 1];
+      }
+
+      const mainIdx = mainPerguntas.findIndex((p) => String(p.id) === String(referenceId));
+      if (mainIdx !== -1 && mainIdx < mainPerguntas.length - 1) {
+        nextId = String(mainPerguntas[mainIdx + 1].id);
       }
     }
 
+    return nextId;
+  };
+
+  const isLastQuestion = useMemo(() => {
+    if (!currentPerguntaId || !currentPergunta) return false;
+    const nextId = calculateNextPerguntaId(currentPerguntaId, userAnswers, returnStack);
     return nextId === null;
-  }, [currentPerguntaId, currentPergunta, userAnswers, currentRespostas, returnStack, mainPerguntas]);
+  }, [currentPerguntaId, currentPergunta, userAnswers, returnStack, mainPerguntas, subPerguntaIds, allPerguntasMap]);
 
   const handleSingleSelect = (resposta: Resposta) => {
     if (!currentPerguntaId) return;
@@ -348,7 +359,7 @@ function QuizApp() {
     });
 
     const mensagemUrlEncoded = encodeURIComponent(mensagemFormatada.trim());
-    let urlWhatsapp = `https://api.whatsapp.com/send?phone=${atob(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER||'')}&text=${mensagemUrlEncoded}`;
+    let urlWhatsapp = `https://api.whatsapp.com/send?text=${mensagemUrlEncoded}`;
 
     const numeroWhatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
     if (numeroWhatsapp && numeroWhatsapp.trim() !== "") {
@@ -392,18 +403,14 @@ function QuizApp() {
     }
 
     if (!nextId) {
+      let referenceId = idKey;
       if (subPerguntaIds.has(idKey) && nextReturnStack.length > 0) {
-        const parentId = nextReturnStack[nextReturnStack.length - 1];
-        const parentIdx = mainPerguntas.findIndex((p) => String(p.id) === String(parentId));
-        
-        if (parentIdx !== -1 && parentIdx < mainPerguntas.length - 1) {
-          nextId = String(mainPerguntas[parentIdx + 1].id);
-        }
-      } else {
-        const mainIdx = mainPerguntas.findIndex((p) => String(p.id) === idKey);
-        if (mainIdx !== -1 && mainIdx < mainPerguntas.length - 1) {
-          nextId = String(mainPerguntas[mainIdx + 1].id);
-        }
+        referenceId = nextReturnStack[nextReturnStack.length - 1];
+      }
+
+      const mainIdx = mainPerguntas.findIndex((p) => String(p.id) === String(referenceId));
+      if (mainIdx !== -1 && mainIdx < mainPerguntas.length - 1) {
+        nextId = String(mainPerguntas[mainIdx + 1].id);
       }
     }
 
@@ -415,7 +422,6 @@ function QuizApp() {
   };
 
   const handleBack = () => {
-    // Se estiver na primeira pergunta (sem histórico), volta para a lista inicial
     if (history.length === 0) {
       handleVoltarParaLista();
       return;
@@ -444,9 +450,7 @@ function QuizApp() {
   };
 
   if (loading || loadingPerguntas) {
-    return (
-      <LoadingUi />
-    );
+    return <LoadingUi />;
   }
 
   if (errorMessage) {
