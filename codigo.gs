@@ -13,7 +13,9 @@ class BaseEntity {
     if (isNaN(date.getTime())) return String(dateVal);
 
     const pad = (num) => String(num).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    
+    // Usa os métodos UTC para ignorar o fuso horário local do Apps Script
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
   }
 }
 
@@ -185,6 +187,7 @@ function montarPerguntaComRespostas(perguntaObj, todasPerguntas, todasRespostas,
     respostas: respostasDaPergunta
   };
 }
+
 
 /**
  * ENDPOINT DA ROTA PARAMETRIZADA
