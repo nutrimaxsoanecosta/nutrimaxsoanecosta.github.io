@@ -3,7 +3,7 @@ import { EntityName } from '@/types/form';
 export interface FieldConfig {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'datetime-local' | 'select';
+  type: 'text' | 'number' | 'datetime-local' | 'date' | 'select'; // <- Adicionado 'date' aqui
   required?: boolean;
   options?: { label: string; value: string | number }[];
 }
