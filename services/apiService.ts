@@ -2,6 +2,11 @@ import { EntityName } from '@/types/form';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APPS_SCRIPT_URL || '';
 
+export interface BulkGroup<T = string | number> {
+  parentId: string | number;
+  items: T[];
+}
+
 const validateConfiguration = (adminToken: string) => {
   if (!BASE_URL) {
     throw new Error('NEXT_PUBLIC_APPS_SCRIPT_URL não está configurada no .env.');
@@ -147,4 +152,33 @@ export async function deleteRecord(entity: EntityName, id: string | number, admi
     }
     throw err;
   }
+}
+
+export async function fetchBulkRecords<T = string | number>(entity: EntityName, adminToken: string, signal?: AbortSignal): Promise<BulkGroup<T>[]> {
+  validateConfiguration(adminToken);
+  const url = `${BASE_URL}?dado=${entity.toLowerCase()}&bulk=true&admin=${encodeURIComponent(adminToken)}`;
+  const res = await fetch(url, { method: 'GET', redirect: 'follow', signal });
+  if (!res.ok) throw new Error(`Falha no servidor (Status: ${res.status}).`);
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || `Erro ao carregar dados agrupados de ${entity}`);
+  return data.data as BulkGroup<T>[];
+}
+
+export async function syncBulkRecords(
+  entity: EntityName,
+  parentId: string | number,
+  childIds: Array<string | number>,
+  adminToken: string,
+): Promise<BulkGroup<string | number>> {
+  validateConfiguration(adminToken);
+  const url = `${BASE_URL}?admin=${encodeURIComponent(adminToken)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'BULK_SYNC', entity, data: { parentId, childIds } }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || `Erro ao sincronizar dados de ${entity}`);
+  return data.data as BulkGroup;
 }

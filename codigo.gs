@@ -121,7 +121,7 @@ const ENTITY_CONFIG = {
   PERFIL: { sheetName: "PERFIL", classRef: Perfil, columns: ["id", "nomePerfil", "dataHoraAlteracao"] },
   PACIENTE: { sheetName: "PACIENTE", classRef: Paciente, columns: ["id", "nomePaciente", "apelido", "dataInicio", "dataFim", "dataHoraAlteracao"] },
   PACIENTE_PERFIL: { sheetName: "PACIENTE_PERFIL", classRef: PacientePerfil, columns: ["id", "idPaciente", "idPerfil", "dataHoraAlteracao"] },
-  CATEGORIA: { sheetName: "CATEGORIA", classRef: Categoria, c: ["id", "nomeCategoria", "ordemExibicao", "dataHoraAlteracao"] },
+  CATEGORIA: { sheetName: "CATEGORIA", classRef: Categoria, columns: ["id", "nomeCategoria", "ordemExibicao", "dataHoraAlteracao"] },
   CATEGORIA_PERGUNTA: { sheetName: "CATEGORIA_PERGUNTA", classRef: CategoriaPergunta, columns: ["id", "idCategoria", "idPergunta", "dataHoraAlteracao"] },
   PERFIL_PERGUNTA: { sheetName: "PERFIL_PERGUNTA", classRef: PerfilPergunta, columns: ["id", "idPerfil", "idPergunta", "dataHoraAlteracao"] },
   PERGUNTA: { sheetName: "PERGUNTA", classRef: Pergunta, columns: ["id", "principal", "textoPergunta", "tipoPergunta", "obrigatorio", "dataHoraAlteracao"] },
@@ -129,6 +129,14 @@ const ENTITY_CONFIG = {
   RESPOSTA: { sheetName: "RESPOSTA", classRef: Resposta, columns: ["id", "idPergunta", "textoResposta", "anuladora", "ordemExibicao", "idProximaPergunta", "dataHoraAlteracao"] },
   FORMULARIO: { sheetName: "FORMULARIO", classRef: Formulario, columns: ["id", "idPaciente", "nomeFormulario", "dataInicio", "dataFim", "dataHoraAlteracao"] },
   FORMULARIO_PERGUNTA: { sheetName: "FORMULARIO_PERGUNTA", classRef: FormularioPergunta, columns: ["id", "idFormulario", "idPergunta", "dataHoraAlteracao"] }
+};
+
+const BULK_CONFIG = {
+  PACIENTE_PERFIL: { parentKey: "idPaciente", childKey: "idPerfil", childIsObject: false },
+  CATEGORIA_PERGUNTA: { parentKey: "idCategoria", childKey: "idPergunta", childIsObject: false },
+  PERFIL_PERGUNTA: { parentKey: "idPerfil", childKey: "idPergunta", childIsObject: false },
+  FORMULARIO_PERGUNTA: { parentKey: "idFormulario", childKey: "idPergunta", childIsObject: false },
+  RESPOSTA: { parentKey: "idPergunta", childKey: "id", childIsObject: true }
 };
 
 /**
@@ -241,6 +249,42 @@ function getAllRecords(entityKey) {
     });
 }
 
+function getBulkRecords(entityKey) {
+  const bulkConfig = BULK_CONFIG[entityKey];
+  if (!bulkConfig) throw new Error(`Entidade '${entityKey}' não possui rota bulk.`);
+
+  const groups = {};
+  getAllRecords(entityKey).forEach(record => {
+    const parentId = String(record[bulkConfig.parentKey]);
+    if (!groups[parentId]) groups[parentId] = [];
+    groups[parentId].push(bulkConfig.childIsObject ? record : record[bulkConfig.childKey]);
+  });
+
+  return Object.keys(groups).map(parentId => ({ parentId: parentId, items: groups[parentId] }));
+}
+
+function syncBulkRecords(entityKey, data) {
+  const bulkConfig = BULK_CONFIG[entityKey];
+  if (!bulkConfig) throw new Error(`Entidade '${entityKey}' não possui sincronização bulk.`);
+  if (data.parentId === undefined || data.parentId === null || data.parentId === "") {
+    throw new Error("Parâmetro 'parentId' é obrigatório para sincronização bulk.");
+  }
+
+  const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.childIds) ? data.childIds : []);
+  getAllRecords(entityKey)
+    .filter(record => String(record[bulkConfig.parentKey]) === String(data.parentId))
+    .forEach(record => deleteRecord(entityKey, record.id));
+
+  items.forEach(item => {
+    const recordData = bulkConfig.childIsObject
+      ? Object.assign({}, item, { [bulkConfig.parentKey]: data.parentId })
+      : { [bulkConfig.parentKey]: data.parentId, [bulkConfig.childKey]: item };
+    createRecord(entityKey, recordData);
+  });
+
+  return { parentId: data.parentId, items: items };
+}
+
 function createRecord(entityKey, data) {
   const config = ENTITY_CONFIG[entityKey.toUpperCase()];
   if (!config) throw new Error(`Entidade '${entityKey}' não é válida.`);
@@ -349,6 +393,11 @@ function doGet(e) {
     }
 
     // --- ROTA DE LEITURA CRUD ADMIN ---
+    if (isAdmin && dados.length > 0 && e?.parameter?.bulk === "true" && BULK_CONFIG[dados[0].toUpperCase()]) {
+      const entityKey = dados[0].toUpperCase();
+      return responseJSON({ success: true, entity: entityKey, bulk: true, data: getBulkRecords(entityKey) });
+    }
+
     if (isAdmin && dados.length > 0 && ENTITY_CONFIG[dados[0].toUpperCase()]) {
       const entityKey = dados[0].toUpperCase();
       const records = getAllRecords(entityKey);
@@ -503,6 +552,10 @@ function doPost(e) {
 
     let result;
     switch (action.toUpperCase()) {
+      case "BULK_SYNC":
+        result = syncBulkRecords(entityKey, data || {});
+        return responseJSON({ success: true, action: "BULK_SYNC", data: result }, 200);
+
       case "CREATE":
         result = createRecord(entityKey, data || {});
         return responseJSON({ success: true, action: "CREATE", data: result }, 201);

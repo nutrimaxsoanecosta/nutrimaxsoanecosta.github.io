@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { FiArrowDown, FiArrowLeft, FiArrowRight, FiArrowUp, FiCheck, FiSearch } from 'react-icons/fi';
+import { FiArrowDown, FiArrowLeft, FiArrowRight, FiArrowUp, FiCheck, FiLoader, FiSearch } from 'react-icons/fi';
 
 export interface DualListItem {
   id: string | number;
@@ -20,6 +20,8 @@ interface DualListProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  isLoading?: boolean;
+  isReady?: boolean;
 }
 
 export function DualList({
@@ -33,6 +35,8 @@ export function DualList({
   searchPlaceholder = 'Buscar item',
   emptyMessage = 'Nenhum item encontrado.',
   disabled = false,
+  isLoading = false,
+  isReady = true,
 }: DualListProps) {
   const [availableSearch, setAvailableSearch] = useState('');
   const [selectedSearch, setSelectedSearch] = useState('');
@@ -42,6 +46,7 @@ export function DualList({
   const selectedKeySet = useMemo(() => new Set(selectedIds.map(String)), [selectedIds]);
   const availableItems = items.filter((item) => !selectedKeySet.has(String(item.id)));
   const selectedItems = items.filter((item) => selectedKeySet.has(String(item.id)));
+  const isLocked = disabled || isLoading || !isReady;
 
   const filterItems = (list: DualListItem[], search: string) => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
@@ -60,7 +65,7 @@ export function DualList({
   };
 
   const moveItems = (ids: Array<string | number>, direction: 'add' | 'remove') => {
-    if (disabled || ids.length === 0) return;
+    if (isLocked || ids.length === 0) return;
 
     const idSet = new Set(ids.map(String));
     const nextSelected = direction === 'add'
@@ -91,7 +96,7 @@ export function DualList({
     const allVisibleChecked = visibleIds.length > 0 && checkedVisibleCount === visibleIds.length;
 
     return (
-      <section className="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm" aria-labelledby={`${listType}-list-title`}>
+      <section className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm lg:h-[38rem]" aria-labelledby={`${listType}-list-title`}>
         <div className="border-b border-slate-100 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -108,7 +113,7 @@ export function DualList({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={searchPlaceholder}
-              disabled={disabled}
+              disabled={isLocked}
               className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#498a28] focus:bg-white focus:ring-2 focus:ring-[#498a28]/15 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </label>
@@ -119,15 +124,20 @@ export function DualList({
               type="checkbox"
               checked={allVisibleChecked}
               onChange={() => setSearchChecked(listType, visibleIds, allVisibleChecked)}
-              disabled={disabled || visibleIds.length === 0}
+              disabled={isLocked || visibleIds.length === 0}
               className="h-4 w-4 rounded accent-[#1b532b]"
             />
             <span className="truncate">Selecionar visíveis</span>
           </label>
           <span className="shrink-0 text-xs text-slate-400">{checkedVisibleCount} marcados</span>
         </div>
-        <ul className="max-h-72 min-h-40 overflow-y-auto p-2" aria-label={title}>
-          {list.length === 0 ? (
+        <ul className="min-h-40 flex-1 overflow-y-auto p-2" aria-label={title}>
+          {isLoading || !isReady ? (
+            <li className="flex min-h-36 items-center justify-center gap-2 px-4 text-center text-sm text-slate-500">
+              <FiLoader aria-hidden="true" className="h-5 w-5 animate-spin text-[#1b532b]" />
+              <span>Carregando opções...</span>
+            </li>
+          ) : list.length === 0 ? (
             <li className="flex min-h-36 items-center justify-center px-4 text-center text-sm text-slate-500">{emptyMessage}</li>
           ) : list.map((item) => {
             const isChecked = checked.some((id) => String(id) === String(item.id));
@@ -138,7 +148,7 @@ export function DualList({
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggleChecked(item.id, listType)}
-                    disabled={disabled || item.disabled}
+                    disabled={isLocked || item.disabled}
                     className="h-4 w-4 shrink-0 rounded accent-[#1b532b]"
                   />
                   <span className="min-w-0 break-words">{item.label}</span>
@@ -163,14 +173,14 @@ export function DualList({
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
       {renderList(visibleAvailable, availableChecked, 'available', availableTitle, availableDescription, availableSearch, setAvailableSearch)}
       <div className="flex justify-center gap-2 lg:flex-col">
-        <button type="button" onClick={() => moveItems(availableChecked, 'add')} disabled={disabled || availableChecked.length === 0} aria-label="Adicionar selecionados" title="Adicionar selecionados" className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#1b532b] px-3 text-sm font-semibold text-white transition hover:bg-[#154323] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 lg:flex-none">
+        <button type="button" onClick={() => moveItems(availableChecked, 'add')} disabled={isLocked || availableChecked.length === 0} aria-label="Adicionar selecionados" title="Adicionar selecionados" className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#1b532b] px-3 text-sm font-semibold text-white transition hover:bg-[#154323] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 lg:flex-none">
           <FiArrowRight className="hidden h-4 w-4 lg:block" /><FiArrowDown className="h-4 w-4 lg:hidden" /><span className="sm:inline lg:hidden">Adicionar</span>
         </button>
-        <button type="button" onClick={() => moveItems(selectedChecked, 'remove')} disabled={disabled || selectedChecked.length === 0} aria-label="Remover selecionados" title="Remover selecionados" className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 lg:flex-none">
+        <button type="button" onClick={() => moveItems(selectedChecked, 'remove')} disabled={isLocked || selectedChecked.length === 0} aria-label="Remover selecionados" title="Remover selecionados" className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 lg:flex-none">
           <FiArrowLeft className="hidden h-4 w-4 lg:block" /><FiArrowUp className="h-4 w-4 lg:hidden" /><span className="sm:inline lg:hidden">Remover</span>
         </button>
-        <button type="button" onClick={() => moveAll('add')} disabled={disabled || availableItems.every((item) => item.disabled)} aria-label="Adicionar todos" title="Adicionar todos" className="hidden h-9 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40 lg:inline-flex"><FiArrowRight className="h-4 w-4" /><span className="sr-only">Adicionar todos</span></button>
-        <button type="button" onClick={() => moveAll('remove')} disabled={disabled || selectedItems.every((item) => item.disabled)} aria-label="Remover todos" title="Remover todos" className="hidden h-9 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40 lg:inline-flex"><FiArrowLeft className="h-4 w-4" /><span className="sr-only">Remover todos</span></button>
+        <button type="button" onClick={() => moveAll('add')} disabled={isLocked || availableItems.every((item) => item.disabled)} aria-label="Adicionar todos" title="Adicionar todos" className="hidden h-9 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40 lg:inline-flex"><FiArrowRight className="h-4 w-4" /><span className="sr-only">Adicionar todos</span></button>
+        <button type="button" onClick={() => moveAll('remove')} disabled={isLocked || selectedItems.every((item) => item.disabled)} aria-label="Remover todos" title="Remover todos" className="hidden h-9 items-center justify-center rounded-lg border border-slate-200 px-2 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40 lg:inline-flex"><FiArrowLeft className="h-4 w-4" /><span className="sr-only">Remover todos</span></button>
       </div>
       {renderList(visibleSelected, selectedChecked, 'selected', selectedTitle, selectedDescription, selectedSearch, setSelectedSearch)}
     </div>

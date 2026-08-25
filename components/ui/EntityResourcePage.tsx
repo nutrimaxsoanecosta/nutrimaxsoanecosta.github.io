@@ -7,9 +7,9 @@ import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
 import { CrudTable } from '@/components/ui/CrudTable';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
-import { createRecord, deleteRecord, fetchRecords, updateRecord } from '@/services/apiService';
+import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
 import { DualList } from '@/components/ui/DualList';
-import { PacientePerfil, Perfil } from '@/types/form';
+import { Perfil } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
@@ -72,7 +72,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
   const [profiles, setProfiles] = useState<Perfil[]>([]);
-  const [patientProfiles, setPatientProfiles] = useState<PacientePerfil[]>([]);
+  const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
+  const [isProfilesLoading, setIsProfilesLoading] = useState(false);
+  const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
   const managesPatientProfiles = entity === 'PACIENTE';
   const [adminToken] = useState(() => {
@@ -138,20 +140,25 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     if (!managesPatientProfiles) return;
 
     let isMounted = true;
+    setIsProfilesLoading(true);
+    setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, relationData] = await Promise.all([
+        const [profileData, relationGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
-          fetchRecords<PacientePerfil>('PACIENTE_PERFIL', adminToken),
+          fetchBulkRecords('PACIENTE_PERFIL', adminToken),
         ]);
         if (isMounted) {
           setProfiles(profileData);
-          setPatientProfiles(relationData);
+          setPatientProfileGroups(relationGroups);
+          setIsProfilesReady(true);
         }
       } catch (loadError) {
         if (isMounted) {
           setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar os perfis.');
         }
+      } finally {
+        if (isMounted) setIsProfilesLoading(false);
       }
     };
 
@@ -170,9 +177,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const handleOpenEdit = (record: Record<string, any>) => {
     setEditingRecord(record);
     setSelectedProfileIds(
-      patientProfiles
-        .filter((relation) => String(relation.idPaciente) === String(record.id))
-        .map((relation) => relation.idPerfil),
+      patientProfileGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
     setIsFormOpen(true);
   };
@@ -203,21 +208,11 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
     if (managesPatientProfiles) {
       const patientId = savedPatient.id;
-      const currentRelations = patientProfiles.filter((relation) => String(relation.idPaciente) === String(patientId));
-      const selectedKeys = new Set(selectedProfileIds.map(String));
-      const currentKeys = new Set(currentRelations.map((relation) => String(relation.idPerfil)));
-
-      await Promise.all([
-        ...selectedProfileIds
-          .filter((profileId) => !currentKeys.has(String(profileId)))
-          .map((profileId) => createRecord<PacientePerfil>('PACIENTE_PERFIL', { idPaciente: patientId, idPerfil: profileId }, adminToken)),
-        ...currentRelations
-          .filter((relation) => !selectedKeys.has(String(relation.idPerfil)))
-          .map((relation) => deleteRecord('PACIENTE_PERFIL', relation.id, adminToken)),
+      const syncedGroup = await syncBulkRecords('PACIENTE_PERFIL', patientId, selectedProfileIds, adminToken);
+      setPatientProfileGroups((current) => [
+        ...current.filter((group) => String(group.parentId) !== String(patientId)),
+        syncedGroup,
       ]);
-
-      const refreshedRelations = await fetchRecords<PacientePerfil>('PACIENTE_PERFIL', adminToken);
-      setPatientProfiles(refreshedRelations);
     }
   };
 
@@ -299,6 +294,8 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               items={profiles.map((profile) => ({ id: profile.id, label: profile.nomePerfil }))}
               selectedIds={selectedProfileIds}
               onChange={setSelectedProfileIds}
+              isLoading={isProfilesLoading}
+              isReady={isProfilesReady}
             />
           </div>
         ) : null}
