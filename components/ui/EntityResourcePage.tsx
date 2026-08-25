@@ -8,6 +8,8 @@ import { CrudForm } from '@/components/ui/CrudForm';
 import { CrudTable } from '@/components/ui/CrudTable';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { createRecord, deleteRecord, fetchRecords, updateRecord } from '@/services/apiService';
+import { DualList } from '@/components/ui/DualList';
+import { PacientePerfil, Perfil } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
@@ -69,6 +71,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
+  const [profiles, setProfiles] = useState<Perfil[]>([]);
+  const [patientProfiles, setPatientProfiles] = useState<PacientePerfil[]>([]);
+  const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
+  const managesPatientProfiles = entity === 'PACIENTE';
   const [adminToken] = useState(() => {
     const configuredToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
@@ -128,13 +134,46 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     };
   }, [entity, adminToken]);
 
+  useEffect(() => {
+    if (!managesPatientProfiles) return;
+
+    let isMounted = true;
+    const loadProfiles = async () => {
+      try {
+        const [profileData, relationData] = await Promise.all([
+          fetchRecords<Perfil>('PERFIL', adminToken),
+          fetchRecords<PacientePerfil>('PACIENTE_PERFIL', adminToken),
+        ]);
+        if (isMounted) {
+          setProfiles(profileData);
+          setPatientProfiles(relationData);
+        }
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError instanceof Error ? loadError.message : 'Erro ao carregar os perfis.');
+        }
+      }
+    };
+
+    void loadProfiles();
+    return () => {
+      isMounted = false;
+    };
+  }, [adminToken, managesPatientProfiles]);
+
   const handleOpenCreate = () => {
     setEditingRecord(null);
+    setSelectedProfileIds([]);
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (record: Record<string, any>) => {
     setEditingRecord(record);
+    setSelectedProfileIds(
+      patientProfiles
+        .filter((relation) => String(relation.idPaciente) === String(record.id))
+        .map((relation) => relation.idPerfil),
+    );
     setIsFormOpen(true);
   };
 
@@ -149,14 +188,36 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       return accumulator;
     }, {});
 
+    let savedPatient: Record<string, any>;
     if (editingRecord) {
       const updatedRecord = await updateRecord(entity, { ...normalizedData, id: editingRecord.id }, adminToken);
+      savedPatient = updatedRecord;
       setRecords((current) =>
         current.map((record) => (String(record.id) === String(editingRecord.id) ? updatedRecord : record)),
       );
     } else {
       const createdRecord = await createRecord(entity, normalizedData, adminToken);
+      savedPatient = createdRecord;
       setRecords((current) => [...current, createdRecord]);
+    }
+
+    if (managesPatientProfiles) {
+      const patientId = savedPatient.id;
+      const currentRelations = patientProfiles.filter((relation) => String(relation.idPaciente) === String(patientId));
+      const selectedKeys = new Set(selectedProfileIds.map(String));
+      const currentKeys = new Set(currentRelations.map((relation) => String(relation.idPerfil)));
+
+      await Promise.all([
+        ...selectedProfileIds
+          .filter((profileId) => !currentKeys.has(String(profileId)))
+          .map((profileId) => createRecord<PacientePerfil>('PACIENTE_PERFIL', { idPaciente: patientId, idPerfil: profileId }, adminToken)),
+        ...currentRelations
+          .filter((relation) => !selectedKeys.has(String(relation.idPerfil)))
+          .map((relation) => deleteRecord('PACIENTE_PERFIL', relation.id, adminToken)),
+      ]);
+
+      const refreshedRelations = await fetchRecords<PacientePerfil>('PACIENTE_PERFIL', adminToken);
+      setPatientProfiles(refreshedRelations);
     }
   };
 
@@ -227,7 +288,21 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         onClose={handleCloseForm}
         onSubmit={handleSubmit}
         onSuccessToast={showToast}
-      />
+      >
+        {managesPatientProfiles ? (
+          <div className="space-y-2 pt-2">
+            <div>
+              <h3 className="text-sm font-medium text-slate-700">Perfis do paciente</h3>
+              <p className="mt-1 text-xs text-slate-500">Selecione os perfis relacionados a este paciente.</p>
+            </div>
+            <DualList
+              items={profiles.map((profile) => ({ id: profile.id, label: profile.nomePerfil }))}
+              selectedIds={selectedProfileIds}
+              onChange={setSelectedProfileIds}
+            />
+          </div>
+        ) : null}
+      </CrudForm>
 
       <ErrorDialog error={error} onClose={() => setError(null)} />
 

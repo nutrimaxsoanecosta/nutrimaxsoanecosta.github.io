@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { FieldConfig } from '@/config/entityFields';
 import { FiX, FiLoader } from 'react-icons/fi';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
@@ -13,6 +13,7 @@ interface CrudFormProps {
   onClose: () => void;
   onSubmit: (data: Record<string, any>) => Promise<void>;
   onSuccessToast?: (message: string) => void;
+  children?: ReactNode;
 }
 
 const formatValueForInput = (type: string, value: any) => {
@@ -48,6 +49,7 @@ export function CrudForm({
   onClose,
   onSubmit,
   onSuccessToast,
+  children,
 }: CrudFormProps) {
   const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +156,8 @@ export function CrudForm({
                 </div>
               );
             })}
+
+            {children}
 
             <div className="flex justify-end gap-4 pt-4">
               <button

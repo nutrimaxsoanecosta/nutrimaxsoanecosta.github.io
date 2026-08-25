@@ -3,7 +3,6 @@
 const resources = [
   { label: 'Perfil', path: '/admin/perfil', description: 'Gerencie os perfis do sistema.' },
   { label: 'Paciente', path: '/admin/paciente', description: 'Cadastre e acompanhe os pacientes.' },
-  { label: 'Paciente/Perfil', path: '/admin/paciente-perfil', description: 'Relacione pacientes com perfis.' },
   { label: 'Categoria', path: '/admin/categoria', description: 'Organize as categorias do questionário.' },
   { label: 'Categoria/Pergunta', path: '/admin/categoria-pergunta', description: 'Associe categorias às perguntas.' },
   { label: 'Perfil/Pergunta', path: '/admin/perfil-pergunta', description: 'Defina quais perguntas pertencem ao perfil.' },

@@ -29,7 +29,7 @@ class Perfil extends BaseEntity {
 class Paciente extends BaseEntity {
   constructor(id, nomePaciente, apelido, dataInicio, dataFim, dataHoraAlteracao) {
     super(id, dataHoraAlteracao);
-    this.nomePaciente = apelido || nomePaciente;
+    this.nomePaciente = nomePaciente;
     this.apelido = apelido;
     this.dataInicio = this.formatDate(dataInicio);
     this.dataFim = this.formatDate(dataFim);
