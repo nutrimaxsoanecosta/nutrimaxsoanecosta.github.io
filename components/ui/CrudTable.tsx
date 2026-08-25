@@ -42,6 +42,10 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
       return formatDisplayDate(value);
     }
 
+    if (field.type === 'select') {
+      return field.options?.find((option) => String(option.value) === String(value))?.label ?? String(value);
+    }
+
     return String(value);
   };
 

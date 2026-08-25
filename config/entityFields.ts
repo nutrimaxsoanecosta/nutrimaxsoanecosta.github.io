@@ -3,7 +3,7 @@ import { EntityName } from '@/types/form';
 export interface FieldConfig {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'datetime-local' | 'date' | 'select'; // <- Adicionado 'date' aqui
+  type: 'text' | 'textarea' | 'number' | 'datetime-local' | 'date' | 'select';
   required?: boolean;
   hiddenInList?: boolean;
   options?: { label: string; value: string | number }[];
@@ -36,7 +36,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
     { key: 'idPergunta', label: 'ID Pergunta', type: 'text' }
   ],
   PERGUNTA: [
-    { key: 'textoPergunta', label: 'Texto da Pergunta', type: 'text', required: true },
+    { key: 'textoPergunta', label: 'Texto da Pergunta', type: 'textarea', required: true },
     { 
       key: 'tipoPergunta', label: 'Tipo de Pergunta', type: 'select', 
       options: [

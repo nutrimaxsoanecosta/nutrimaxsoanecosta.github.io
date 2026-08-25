@@ -136,6 +136,24 @@ export function CrudForm({
                 );
               }
 
+              if (field.type === 'textarea') {
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-700">
+                      {field.label}
+                      {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
+                    </label>
+                    <textarea
+                      value={value}
+                      required={isRequired}
+                      disabled={isSubmitting}
+                      onChange={(event) => handleFieldChange(field.key, event.target.value)}
+                      className="min-h-32 w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 md:min-h-24"
+                    />
+                  </div>
+                );
+              }
+
               return (
                 <div key={field.key} className="space-y-2">
                   <label className="block text-sm font-medium text-slate-700">
