@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiPlus, FiRefreshCw, FiSearch, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiPlus, FiRefreshCw, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import { ENTITY_FIELDS, FieldConfig } from '@/config/entityFields';
 import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
@@ -11,7 +11,6 @@ import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
-import { DualList } from '@/components/ui/DualList';
 import { Perfil } from '@/types/form';
 
 interface EntityResourcePageProps {
@@ -79,6 +78,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
+  const [profileToAdd, setProfileToAdd] = useState('');
   const [search, setSearch] = useState('');
   const managesPatientProfiles = entity === 'PACIENTE';
   const [adminToken, setAdminToken] = useState('');
@@ -174,6 +174,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const handleOpenCreate = () => {
     setEditingRecord(null);
     setSelectedProfileIds([]);
+    setProfileToAdd('');
     setIsFormOpen(true);
   };
 
@@ -182,6 +183,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setSelectedProfileIds(
       patientProfileGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
+    setProfileToAdd('');
     setIsFormOpen(true);
   };
 
@@ -263,6 +265,22 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term)),
     );
   }, [fields, records, search]);
+  const selectedProfiles = profiles.filter((profile) =>
+    selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
+  );
+  const availableProfiles = profiles.filter((profile) =>
+    !selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
+  );
+
+  const handleAddProfile = () => {
+    if (!profileToAdd || selectedProfileIds.some((id) => String(id) === profileToAdd)) return;
+    setSelectedProfileIds((current) => [...current, profileToAdd]);
+    setProfileToAdd('');
+  };
+
+  const handleRemoveProfile = (profileId: string | number) => {
+    setSelectedProfileIds((current) => current.filter((id) => String(id) !== String(profileId)));
+  };
 
   return (
     <div className={isFormOpen ? 'min-h-screen bg-brand-cream' : 'min-h-screen bg-brand-cream px-4 pb-28 pt-4 sm:px-6'}>
@@ -365,17 +383,66 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       >
         {managesPatientProfiles ? (
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800">Perfis do paciente</h3>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Selecione os perfis relacionados a este paciente.</p>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Perfis</h3>
+              <span className="shrink-0 text-xs text-slate-500">{selectedProfiles.length} itens</span>
             </div>
-            <DualList
-              items={profiles.map((profile) => ({ id: profile.id, label: profile.nomePerfil }))}
-              selectedIds={selectedProfileIds}
-              onChange={setSelectedProfileIds}
-              isLoading={isProfilesLoading}
-              isReady={isProfilesReady}
-            />
+
+            <div className="flex gap-2">
+              <select
+                value={profileToAdd}
+                onChange={(event) => setProfileToAdd(event.target.value)}
+                disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
+              >
+                <option value="">Selecionar perfil</option>
+                {availableProfiles.map((profile) => (
+                  <option key={String(profile.id)} value={String(profile.id)}>
+                    {profile.nomePerfil}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleAddProfile}
+                disabled={!profileToAdd || isProfilesLoading}
+                aria-label="Adicionar perfil"
+                title="Adicionar perfil"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                <FiPlus className="h-5 w-5" />
+              </button>
+            </div>
+
+            <ul className="space-y-3">
+              {isProfilesLoading || !isProfilesReady ? (
+                <li className="py-6 text-center text-sm text-slate-500">Carregando perfis...</li>
+              ) : selectedProfiles.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+                  Nenhum perfil adicionado.
+                </li>
+              ) : (
+                selectedProfiles.map((profile) => (
+                  <li key={String(profile.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
+                        <FiCheck className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 break-words text-sm font-medium text-slate-800">{profile.nomePerfil}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProfile(profile.id)}
+                        aria-label={`Remover perfil ${profile.nomePerfil}`}
+                        title="Remover perfil"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <FiTrash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
         ) : null}
       </CrudForm>
