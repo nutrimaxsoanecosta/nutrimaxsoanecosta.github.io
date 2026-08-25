@@ -69,7 +69,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
-  const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+  const [adminToken] = useState(() => {
+    const configuredToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+
+    if (typeof window === 'undefined') {
+      return configuredToken;
+    }
+
+    const urlToken = new URLSearchParams(window.location.search).get('adminToken')?.trim();
+    return urlToken || configuredToken;
+  });
 
   const showToast = (message: string) => {
     setToastMessage(message);
