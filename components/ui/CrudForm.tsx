@@ -14,6 +14,8 @@ interface CrudFormProps {
   onSubmit: (data: Record<string, any>) => Promise<void>;
   onDelete?: () => void;
   onSuccessToast?: (message: string) => void;
+  onDataChange?: (data: Record<string, any>) => void;
+  presentation?: 'page' | 'modal';
   children?: ReactNode;
 }
 
@@ -51,6 +53,8 @@ export function CrudForm({
   onSubmit,
   onDelete,
   onSuccessToast,
+  onDataChange,
+  presentation = 'page',
   children,
 }: CrudFormProps) {
   const [formData, setFormData] = useState<Record<string, any>>(initialData);
@@ -68,7 +72,11 @@ export function CrudForm({
   }
 
   const handleFieldChange = (key: string, value: string | number) => {
-    setFormData((current) => ({ ...current, [key]: value }));
+    setFormData((current) => {
+      const nextData = { ...current, [key]: value };
+      onDataChange?.(nextData);
+      return nextData;
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -93,8 +101,8 @@ export function CrudForm({
 
   return (
     <>
-      <div className="min-h-screen bg-brand-cream">
-        <div className="min-h-screen w-full bg-white shadow-sm">
+      <div className={presentation === 'modal' ? 'fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/55 p-3 sm:p-6' : 'min-h-screen bg-brand-cream'}>
+        <div className={presentation === 'modal' ? 'max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand' : 'min-h-screen w-full bg-white shadow-sm'}>
           <header className="sticky top-0 z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
             <button
               type="button"
@@ -121,7 +129,7 @@ export function CrudForm({
             </div>
           </header>
 
-          <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-40 pt-4 sm:px-8 sm:pb-6 sm:pt-6">
+          <form onSubmit={handleSubmit} className={`space-y-4 px-4 pb-40 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${presentation === 'modal' ? 'sm:pb-6' : ''}`}>
             {fields.map((field) => {
               const rawValue = formData[field.key] ?? '';
               const value = formatValueForInput(field.type, rawValue);
@@ -192,7 +200,7 @@ export function CrudForm({
 
             {children}
 
-            <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:-mx-8 sm:px-8 sm:pb-0 sm:pt-4 sm:shadow-none">
+            <div className={presentation === 'modal' ? 'sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white px-4 pb-4 pt-3 sm:-mx-8 sm:px-8' : 'fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:-mx-8 sm:px-8 sm:pb-0 sm:pt-4 sm:shadow-none'}>
               <div className="mx-auto flex w-full max-w-2xl justify-end">
                 <button
                   type="submit"

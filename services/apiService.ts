@@ -176,12 +176,12 @@ export async function fetchBulkRecords<T = string | number>(entity: EntityName, 
   return data.data as BulkGroup<T>[];
 }
 
-export async function syncBulkRecords(
+export async function syncBulkRecords<T = string | number>(
   entity: EntityName,
   parentId: string | number,
-  childIds: Array<string | number>,
+  childIds: Array<string | number | T>,
   adminToken: string,
-): Promise<BulkGroup<string | number>> {
+): Promise<BulkGroup<T>> {
   validateConfiguration(adminToken);
   const url = `${BASE_URL}?admin=${encodeURIComponent(adminToken)}`;
   const res = await fetch(url, {
@@ -192,5 +192,5 @@ export async function syncBulkRecords(
   });
   const data = await res.json();
   if (!data.success) throw new Error(data.error || `Erro ao sincronizar dados de ${entity}`);
-  return data.data as BulkGroup;
+  return data.data as BulkGroup<T>;
 }

@@ -11,13 +11,30 @@ import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
-import { Categoria, Perfil } from '@/types/form';
+import { Categoria, Perfil, Resposta } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
   title: string;
   description?: string;
 }
+
+// Browser-compatible UUID v4 generator
+const generateUUID = (): string => {
+  const arr = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(arr);
+  } else {
+    // Fallback for environments without crypto
+    for (let i = 0; i < 16; i++) {
+      arr[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  arr[6] = (arr[6] & 0x0f) | 0x40; // version 4
+  arr[8] = (arr[8] & 0x3f) | 0x80; // variant 1
+  const hex = Array.from(arr).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
 
 const standardizeValue = (field: FieldConfig, value: any) => {
   const isRequired = field.required !== false;
@@ -77,6 +94,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
   const [profileQuestionGroups, setProfileQuestionGroups] = useState<BulkGroup[]>([]);
   const [categoryQuestionGroups, setCategoryQuestionGroups] = useState<BulkGroup[]>([]);
+  const [questionResponseGroups, setQuestionResponseGroups] = useState<BulkGroup<Resposta>[]>([]);
   const [isProfilesLoading, setIsProfilesLoading] = useState(false);
   const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -85,6 +103,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Array<string | number>>([]);
   const [questionProfileToAdd, setQuestionProfileToAdd] = useState('');
   const [categoryToAdd, setCategoryToAdd] = useState('');
+  const [responses, setResponses] = useState<Resposta[]>([]);
+  const [isResponseFormOpen, setIsResponseFormOpen] = useState(false);
+  const [editingResponse, setEditingResponse] = useState<Resposta | null>(null);
+  const [questionType, setQuestionType] = useState(1);
   const [profileToAdd, setProfileToAdd] = useState('');
   const [search, setSearch] = useState('');
   const managesPatientProfiles = entity === 'PACIENTE';
@@ -155,12 +177,13 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, categoryData, patientGroups, profileGroups, categoryGroups] = await Promise.all([
+        const [profileData, categoryData, patientGroups, profileGroups, categoryGroups, responseGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
           fetchRecords<Categoria>('CATEGORIA', adminToken),
           managesPatientProfiles ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
+          managesQuestionRelations ? fetchBulkRecords<Resposta>('RESPOSTA', adminToken) : Promise.resolve([]),
         ]);
         if (isMounted) {
           setProfiles(profileData);
@@ -168,6 +191,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
           setPatientProfileGroups(patientGroups);
           setProfileQuestionGroups(profileGroups);
           setCategoryQuestionGroups(categoryGroups);
+          setQuestionResponseGroups(responseGroups);
           setIsProfilesReady(true);
         }
       } catch (loadError) {
@@ -193,6 +217,8 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setSelectedCategoryIds([]);
     setQuestionProfileToAdd('');
     setCategoryToAdd('');
+    setResponses([]);
+    setQuestionType(1);
     setIsFormOpen(true);
   };
 
@@ -210,6 +236,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setProfileToAdd('');
     setQuestionProfileToAdd('');
     setCategoryToAdd('');
+    setResponses(
+      questionResponseGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
+    );
+    setQuestionType(Number(record.tipoPergunta) || 1);
     setIsFormOpen(true);
   };
 
@@ -269,6 +299,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
           syncRelations('PERFIL_PERGUNTA', profileQuestionGroups, selectedQuestionProfileIds),
           syncRelations('CATEGORIA_PERGUNTA', categoryQuestionGroups, selectedCategoryIds),
         ]);
+
+        const questionId = savedPatient.id;
+        await syncBulkRecords<Resposta>('RESPOSTA', questionId, questionType === 3 ? [] : responses, adminToken);
       }
     } finally {
       setIsSaving(false);
@@ -362,6 +395,79 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setSelectedCategoryIds((current) => current.filter((id) => String(id) !== String(categoryId)));
   };
 
+  type RelationItem = { id: string | number; label: string };
+  type RelationView = {
+    title: string;
+    selected: RelationItem[];
+    available: RelationItem[];
+    value: string;
+    setValue: (value: string) => void;
+    add: (value: string) => void;
+    remove: (id: string | number) => void;
+  };
+
+  const relationViews: RelationView[] = [
+    {
+      title: 'Perfis',
+      selected: selectedQuestionProfiles.map((item) => ({ id: item.id, label: item.nomePerfil })),
+      available: availableQuestionProfiles.map((item) => ({ id: item.id, label: item.nomePerfil })),
+      value: questionProfileToAdd,
+      setValue: setQuestionProfileToAdd,
+      add: addQuestionProfile,
+      remove: removeQuestionProfile,
+    },
+    {
+      title: 'Categorias',
+      selected: selectedCategories.map((item) => ({ id: item.id, label: item.nomeCategoria })),
+      available: availableCategories.map((item) => ({ id: item.id, label: item.nomeCategoria })),
+      value: categoryToAdd,
+      setValue: setCategoryToAdd,
+      add: addCategory,
+      remove: removeCategory,
+    },
+  ];
+
+  const responseInitialData = useMemo(
+    () => (editingResponse ? { ...createEmptyRecord(ENTITY_FIELDS.RESPOSTA), ...editingResponse } : createEmptyRecord(ENTITY_FIELDS.RESPOSTA)),
+    [editingResponse],
+  );
+
+  const handleOpenResponseCreate = () => {
+    setEditingResponse(null);
+    setIsResponseFormOpen(true);
+  };
+
+  const handleOpenResponseEdit = (response: Resposta) => {
+    setEditingResponse(response);
+    setIsResponseFormOpen(true);
+  };
+
+  const handleResponseSubmit = async (data: Record<string, any>) => {
+    const responseData = {
+      ...data,
+      textoResposta: String(data.textoResposta ?? '').trim(),
+      ordemExibicao: Number(data.ordemExibicao) || responses.length + 1,
+      anuladora: Number(data.anuladora) || 0,
+    } as Resposta;
+
+    if (!responseData.textoResposta) {
+      throw new Error('Informe o texto da resposta.');
+    }
+
+    if (editingResponse) {
+      setResponses((current) => current.map((response) => (
+        String(response.id) === String(editingResponse.id) ? { ...editingResponse, ...responseData } : response
+      )));
+    } else {
+      setResponses((current) => [...current, { ...responseData, id: generateUUID() }]);
+    }
+    setIsResponseFormOpen(false);
+  };
+
+  const handleRemoveResponse = (responseId: string | number) => {
+    setResponses((current) => current.filter((response) => String(response.id) !== String(responseId)));
+  };
+
   return (
     <div className={isFormOpen ? 'min-h-screen bg-brand-cream' : 'min-h-screen bg-brand-cream px-4 pb-28 pt-4 sm:px-6'}>
       {!isFormOpen ? (
@@ -377,13 +483,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 >
                   <FiArrowLeft className="h-6 w-6" />
                 </Link>
-                <span className="truncate text-lg font-semibold text-slate-900">
-                  {title}
-                </span>
+                <span className="truncate text-lg font-semibold text-slate-900">{title}</span>
               </div>
               {description ? <p className="text-sm leading-6 text-slate-600">{description}</p> : null}
             </div>
-
           </div>
         </header>
 
@@ -398,24 +501,14 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-9 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10"
             />
             {search ? (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                aria-label="Limpar busca"
-                title="Limpar busca"
-                className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              >
+              <button type="button" onClick={() => setSearch('')} aria-label="Limpar busca" title="Limpar busca" className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
                 <FiX className="h-4 w-4" />
               </button>
             ) : null}
           </div>
           <div className="flex items-center justify-between px-1 text-sm text-slate-600">
             <span>{filteredRecords.length} registros</span>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50"
-            >
+            <button type="button" onClick={() => window.location.reload()} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50">
               <FiRefreshCw className="h-3.5 w-3.5" />
               Recarregar
             </button>
@@ -460,6 +553,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         onSubmit={handleSubmit}
         onDelete={editingRecord ? () => void handleDelete(editingRecord.id) : undefined}
         onSuccessToast={showToast}
+        onDataChange={(data) => setQuestionType(Number(data.tipoPergunta) || 1)}
       >
         {managesPatientProfiles ? (
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
@@ -527,28 +621,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         ) : null}
         {managesQuestionRelations ? (
           <div className="space-y-4">
-            {[
-              {
-                title: 'Categorias',
-                selected: selectedCategories,
-                available: availableCategories,
-                value: categoryToAdd,
-                setValue: setCategoryToAdd,
-                add: addCategory,
-                remove: removeCategory,
-                label: (item: Categoria) => item.nomeCategoria,
-              },
-              {
-                title: 'Perfis',
-                selected: selectedQuestionProfiles,
-                available: availableQuestionProfiles,
-                value: questionProfileToAdd,
-                setValue: setQuestionProfileToAdd,
-                add: addQuestionProfile,
-                remove: removeQuestionProfile,
-                label: (item: Perfil) => item.nomePerfil,
-              }
-            ].map((relation) => (
+            {relationViews.map((relation) => (
               <section key={relation.title} className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                   <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">{relation.title}</h3>
@@ -563,7 +636,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                   >
                     <option value="">Selecionar {relation.title.toLowerCase()}</option>
                     {relation.available.map((item) => (
-                      <option key={String(item.id)} value={String(item.id)}>{relation.label(item)}</option>
+                      <option key={String(item.id)} value={String(item.id)}>{item.label}</option>
                     ))}
                   </select>
                   <button
@@ -584,7 +657,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                     <li key={String(item.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-4 w-4" /></span>
-                        <span className="min-w-0 break-words text-sm font-medium text-slate-800">{relation.label(item)}</span>
+                        <span className="min-w-0 break-words text-sm font-medium text-slate-800">{item.label}</span>
                         <button type="button" onClick={() => relation.remove(item.id)} aria-label={`Remover ${relation.title.toLowerCase().slice(0, -1)}`} title="Remover" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600"><FiTrash2 className="h-4 w-4" /></button>
                       </div>
                     </li>
@@ -594,7 +667,53 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
             ))}
           </div>
         ) : null}
+        {managesQuestionRelations && questionType !== 3 ? (
+          <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Respostas</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">{responses.length} itens</span>
+                <button
+                  type="button"
+                  onClick={handleOpenResponseCreate}
+                  aria-label="Adicionar resposta"
+                  title="Adicionar resposta"
+                  className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <ul className="space-y-3">
+              {responses.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhuma resposta adicionada.</li>
+              ) : responses.map((response) => (
+                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-4 w-4" /></span>
+                    <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>
+                    <FiArrowLeft className="h-4 w-4 rotate-180 text-slate-400" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </CrudForm>
+
+      <CrudForm
+        isOpen={isResponseFormOpen}
+        presentation="modal"
+        title={editingResponse ? 'Editar resposta' : 'Nova resposta'}
+        fields={ENTITY_FIELDS.RESPOSTA.filter((field) => field.key !== 'idPergunta')}
+        initialData={responseInitialData}
+        onClose={() => setIsResponseFormOpen(false)}
+        onSubmit={handleResponseSubmit}
+        onDelete={editingResponse ? () => {
+          handleRemoveResponse(editingResponse.id);
+          setIsResponseFormOpen(false);
+        } : undefined}
+      />
 
       <ErrorDialog error={error} onClose={() => setError(null)} />
 
