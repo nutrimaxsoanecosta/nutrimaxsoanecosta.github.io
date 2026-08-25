@@ -68,7 +68,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
     { key: 'idPergunta', label: 'ID Pergunta', type: 'text' },
     { key: 'textoResposta', label: 'Texto da Resposta', type: 'text', required: true },
     { key: 'ordemExibicao', label: 'Ordem de Exibição', type: 'number', required: true },
-    { key: 'idProximaPergunta', label: 'ID Próxima Pergunta (Opcional)', type: 'text', required: false },
+    { key: 'idProximaPergunta', label: 'Próxima Pergunta', type: 'text', required: false },
     { 
       key: 'anuladora', label: 'Anuladora', type: 'select', 
       options: [{ label: 'Não', value: 0 }, { label: 'Sim', value: 1 }] 

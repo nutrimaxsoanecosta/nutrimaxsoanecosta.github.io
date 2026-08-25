@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
-import { FiX } from 'react-icons/fi';
+import { usePathname } from 'next/navigation';
+import { FiLock, FiShield, FiX } from 'react-icons/fi';
 import { validateAdminToken } from '@/services/apiService';
 
 export const ADMIN_TOKEN_STORAGE_KEY = 'adminToken';
@@ -11,6 +12,7 @@ interface AdminAuthGuardProps {
 }
 
 export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
+  const pathname = usePathname();
   const [token, setToken] = useState('');
   const [credential, setCredential] = useState('');
   const [isChecking, setIsChecking] = useState(true);
@@ -63,26 +65,43 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   };
 
   if (isChecking) {
-    return <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6 text-slate-600">Validando acesso...</main>;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-brand-cream p-6 text-slate-700">
+        <div className="rounded-2xl border border-brand-greenDark/10 bg-white px-5 py-4 text-sm font-medium shadow-sm">
+          Validando acesso...
+        </div>
+      </main>
+    );
   }
 
   if (!token) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-        <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-2xl font-bold text-slate-900">Acesso administrativo</h1>
-          <p className="mt-2 text-sm text-slate-600">Informe a credencial para continuar.</p>
+      <main className="flex min-h-screen items-center justify-center bg-brand-cream p-4 sm:p-6">
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-md rounded-[28px] border border-brand-greenDark/10 bg-white p-5 shadow-brand sm:p-6"
+        >
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-greenDark/10 text-brand-greenDark">
+            <FiShield className="h-6 w-6" />
+          </div>
+
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Acesso administrativo</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Informe a credencial para continuar.</p>
+
           <label htmlFor="admin-credential" className="mt-6 block text-sm font-semibold text-slate-700">
             Credencial
           </label>
           <div className="relative mt-2">
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+              <FiLock className="h-4 w-4" />
+            </div>
             <input
               id="admin-credential"
               type="password"
               value={credential}
               onChange={(event) => setCredential(event.target.value)}
               autoComplete="current-password"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 text-slate-900 caret-slate-900 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              className="w-full rounded-2xl border border-slate-200 bg-brand-cream/60 py-3 pl-10 pr-10 text-slate-900 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10"
               required
             />
             {credential ? (
@@ -91,17 +110,19 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
                 aria-label="Limpar credencial"
                 title="Limpar credencial"
                 onClick={() => setCredential('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 transition hover:bg-white hover:text-slate-900"
               >
-                <FiX aria-hidden="true" size={18} />
+                <FiX aria-hidden="true" size={16} />
               </button>
             ) : null}
           </div>
+
           {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+
           <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 w-full rounded-2xl bg-brand-greenDark px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? 'Validando...' : 'Entrar'}
           </button>
@@ -112,17 +133,19 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
   return (
     <>
-      <div className="bg-slate-100 px-6 pb-2 pt-5">
-        <div className="mx-auto flex w-full max-w-7xl justify-end">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Sair
-          </button>
+      {pathname === '/admin' ? (
+        <div className="border-b border-brand-greenDark/10 bg-brand-cream px-4 pb-3 pt-4 sm:px-6">
+          <div className="mx-auto flex w-full max-w-6xl justify-end">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-brand-greenDark/20 hover:text-brand-greenDark"
+            >
+              Sair
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
       {children}
     </>
   );

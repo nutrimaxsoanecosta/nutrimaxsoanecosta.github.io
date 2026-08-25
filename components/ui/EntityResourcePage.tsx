@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { FiArrowLeft, FiPlus, FiRefreshCw, FiSearch, FiX } from 'react-icons/fi';
 import { ENTITY_FIELDS, FieldConfig } from '@/config/entityFields';
 import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
@@ -36,7 +37,6 @@ const standardizeValue = (field: FieldConfig, value: any) => {
     return value === '' || value === null || value === undefined ? (field.options?.[0]?.value ?? '') : value;
   }
 
-  // Adiciona o sufixo UTC ('Z') aos campos de data
   if (field.type === 'datetime-local' && value) {
     const strVal = String(value).trim();
     if (strVal.length === 16) {
@@ -79,6 +79,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
+  const [search, setSearch] = useState('');
   const managesPatientProfiles = entity === 'PACIENTE';
   const [adminToken, setAdminToken] = useState('');
 
@@ -236,6 +237,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       await deleteRecord(entity, recordId, adminToken);
       setRecords((current) => current.filter((record) => String(record.id) !== String(recordId)));
       showToast('Registro excluído com sucesso!');
+      if (String(editingRecord?.id) === String(recordId)) {
+        handleCloseForm();
+      }
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Erro ao excluir registro.');
     } finally {
@@ -243,50 +247,111 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     }
   };
 
-  const formInitialData = editingRecord
-    ? { ...createEmptyRecord(fields), ...editingRecord }
-    : createEmptyRecord(fields);
+  const formInitialData = useMemo(
+    () => (editingRecord ? { ...createEmptyRecord(fields), ...editingRecord } : createEmptyRecord(fields)),
+    [editingRecord, fields],
+  );
   const isBusy = isLoading || isProfilesLoading || isSaving || deletingId !== null;
+  const filteredRecords = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    if (!term) {
+      return records;
+    }
+
+    return records.filter((record) =>
+      fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term)),
+    );
+  }, [fields, records, search]);
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <Link href="/admin" className="mb-2 inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800">
-              ← Voltar para o painel
-            </Link>
-              <br />
-              <div className="mb-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-base font-semibold uppercase tracking-[0.12em] text-blue-700">
-               {title}
+    <div className={isFormOpen ? 'min-h-screen bg-brand-cream' : 'min-h-screen bg-brand-cream px-4 pb-28 pt-4 sm:px-6'}>
+      {!isFormOpen ? (
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-4 rounded-[28px] bg-white p-4 shadow-brand sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 space-y-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <Link
+                  href="/admin"
+                  className="inline-flex shrink-0 items-center text-sm font-medium text-brand-greenDark transition hover:text-brand-greenDark/80"
+                  aria-label="Voltar para o painel"
+                >
+                  <FiArrowLeft className="h-6 w-6" />
+                </Link>
+                <span className="truncate text-lg font-semibold text-slate-900">
+                  {title}
+                </span>
               </div>
-            {description ? <p className="mt-2 text-sm text-slate-600">{description}</p> : null}
-         
-          </div>
+              {description ? <p className="text-sm leading-6 text-slate-600">{description}</p> : null}
+            </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            + Novo registro
-          </button>
+          </div>
+        </header>
+
+        <div className="mb-4 space-y-3">
+          <div className="relative">
+            <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Buscar em ${title.toLowerCase()}`}
+              aria-label={`Buscar em ${title.toLowerCase()}`}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-9 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                aria-label="Limpar busca"
+                title="Limpar busca"
+                className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FiX className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex items-center justify-between px-1 text-sm text-slate-600">
+            <span>{filteredRecords.length} registros</span>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <FiRefreshCw className="h-3.5 w-3.5" />
+              Recarregar
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-slate-600">
-            <p>Carregando registros...</p>
+          <div className="flex min-h-[220px] items-center justify-center rounded-[28px] border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Spinner size="sm" className="border-brand-greenDark border-t-transparent" />
+              <p className="font-medium">Carregando registros...</p>
+            </div>
           </div>
         ) : (
           <CrudTable
             fields={fields}
-            records={records}
-            deletingId={deletingId}
+            records={filteredRecords}
             onEdit={handleOpenEdit}
-            onDelete={handleDelete}
           />
         )}
       </div>
+      ) : null}
+
+      {!isFormOpen ? (
+        <button
+          type="button"
+          onClick={handleOpenCreate}
+          aria-label="Novo registro"
+          title="Novo registro"
+          className="fixed bottom-6 right-5 z-20 grid h-14 w-14 place-items-center rounded-full bg-brand-greenDark text-white shadow-lg transition hover:bg-brand-greenDark/90 active:scale-95 sm:bottom-8 sm:right-8"
+        >
+          <FiPlus className="h-6 w-6" aria-hidden="true" />
+        </button>
+      ) : null}
 
       <CrudForm
         isOpen={isFormOpen}
@@ -295,13 +360,14 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         initialData={formInitialData}
         onClose={handleCloseForm}
         onSubmit={handleSubmit}
+        onDelete={editingRecord ? () => void handleDelete(editingRecord.id) : undefined}
         onSuccessToast={showToast}
       >
         {managesPatientProfiles ? (
-          <div className="space-y-2 pt-2">
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
             <div>
-              <h3 className="text-sm font-medium text-slate-700">Perfis do paciente</h3>
-              <p className="mt-1 text-xs text-slate-500">Selecione os perfis relacionados a este paciente.</p>
+              <h3 className="text-sm font-semibold text-slate-800">Perfis do paciente</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Selecione os perfis relacionados a este paciente.</p>
             </div>
             <DualList
               items={profiles.map((profile) => ({ id: profile.id, label: profile.nomePerfil }))}
@@ -317,13 +383,13 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       <ErrorDialog error={error} onClose={() => setError(null)} />
 
       {toastMessage ? (
-        <div className="fixed right-5 top-5 z-[80] rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all animate-in fade-in slide-in-from-top-2">
+        <div className="fixed right-4 top-5 z-[80] rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">
           {toastMessage}
         </div>
       ) : null}
 
       {isBusy ? (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-slate-900/50 p-6 backdrop-blur-[2px]" role="status" aria-live="polite">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-slate-900/55 p-6 backdrop-blur-[2px]" role="status" aria-live="polite">
           <Spinner size="lg" className="border-white border-t-transparent" />
           <p className="text-sm font-semibold text-white">
             {isSaving || deletingId !== null ? 'Processando...' : 'Carregando dados...'}

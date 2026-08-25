@@ -2,25 +2,43 @@
 
 :root {
   --background: #f9f7f2;
-  --foreground: #2d312e;
+  --foreground: #1f2a22;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-greenDark: #1b532b;
+  --color-brand-greenLeaf: #498a28;
+  --color-brand-gold: #c39a2b;
+  --color-brand-terracotta: #cc6d43;
+  --color-brand-cream: #f9f7f2;
+  --color-brand-muted: #6e7570;
+  --shadow-brand: 0 12px 35px rgba(27, 83, 43, 0.06);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
