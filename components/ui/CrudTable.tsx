@@ -48,7 +48,7 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
       <table className="min-w-full border-collapse text-left text-sm text-slate-700">
         <thead className="bg-slate-100 text-slate-600">
           <tr>
-            <th className="px-4 py-3 font-semibold">ID</th>
+            <th className="hidden">ID</th>
             {fields.map((field) => (
               <th key={field.key} className="px-4 py-3 font-semibold">
                 {field.label}
@@ -71,7 +71,7 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
 
               return (
                 <tr key={String(record.id)} className="border-t border-slate-200 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-800">{record.id}</td>
+                  <td className="hidden">{record.id}</td>
                   {fields.map((field) => (
                     <td key={`${String(record.id)}-${field.key}`} className="px-4 py-3">
                       {renderCellValue(field, record[field.key])}
