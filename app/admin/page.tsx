@@ -16,7 +16,7 @@ const resources = [
 export default function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-7xl">
         <header className="mb-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">Administração</p>
           <h1 className="mt-3 text-2xl font-bold text-slate-900">Cradastrar, Editar e Excluir</h1>
@@ -29,10 +29,9 @@ export default function AdminDashboardPage() {
               href={resource.path}
               className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
             >
-              <div className="mb-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
-                Recurso
+              <div className="mb-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-base font-semibold uppercase tracking-[0.12em] text-blue-700">
+               {resource.label}
               </div>
-              <h2 className="text-xl font-bold text-slate-900">{resource.label}</h2>
               <p className="mt-2 text-sm text-slate-600">{resource.description}</p>
               <span className="mt-4 inline-flex text-sm font-semibold text-blue-700 group-hover:text-blue-800">
                 Abrir painel →

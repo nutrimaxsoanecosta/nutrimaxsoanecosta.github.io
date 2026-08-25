@@ -17,6 +17,18 @@ const validateConfiguration = (adminToken: string) => {
   }
 };
 
+export async function validateAdminToken(adminToken: string): Promise<void> {
+  validateConfiguration(adminToken);
+
+  const url = `${BASE_URL}?acao=VALIDATE_ADMIN_TOKEN&admin=${encodeURIComponent(adminToken)}`;
+  const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+  const data = await response.json();
+
+  if (!response.ok || !data.success || data.valid !== true) {
+    throw new Error(data.error || 'Credencial inválida.');
+  }
+}
+
 export async function fetchRecords<T>(
   entity: EntityName,
   adminToken: string,

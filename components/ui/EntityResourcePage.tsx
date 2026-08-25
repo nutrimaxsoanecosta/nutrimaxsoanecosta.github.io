@@ -7,6 +7,7 @@ import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
 import { CrudTable } from '@/components/ui/CrudTable';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
+import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
 import { DualList } from '@/components/ui/DualList';
 import { Perfil } from '@/types/form';
@@ -77,16 +78,11 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
   const managesPatientProfiles = entity === 'PACIENTE';
-  const [adminToken] = useState(() => {
-    const configuredToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+  const [adminToken, setAdminToken] = useState('');
 
-    if (typeof window === 'undefined') {
-      return configuredToken;
-    }
-
-    const urlToken = new URLSearchParams(window.location.search).get('adminToken')?.trim();
-    return urlToken || configuredToken;
-  });
+  useEffect(() => {
+    setAdminToken(sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY)?.trim() || '');
+  }, []);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -100,6 +96,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     const controller = new AbortController();
 
     const loadRecords = async () => {
+      if (!adminToken) {
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
 
@@ -242,13 +242,17 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   return (
     <div className="min-h-screen bg-slate-100 p-6">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link href="/admin" className="mb-2 inline-flex items-center text-sm font-medium text-blue-700 hover:text-blue-800">
               ← Voltar para o painel
             </Link>
-            <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
+              <br />
+              <div className="mb-3 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-base font-semibold uppercase tracking-[0.12em] text-blue-700">
+               {title}
+              </div>
             {description ? <p className="mt-2 text-sm text-slate-600">{description}</p> : null}
+         
           </div>
 
           <button

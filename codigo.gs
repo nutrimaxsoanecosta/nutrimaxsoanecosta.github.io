@@ -162,6 +162,33 @@ function responseJSON(payload, status = 200) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function validateAdminTokenRoute(adminParam) {
+  if (!adminParam || !String(adminParam).trim()) {
+    return responseJSON({
+      success: false,
+      valid: false,
+      code: "ADMIN_TOKEN_MISSING",
+      error: "Credencial não informada. Envie o parâmetro 'admin' para validar o token ADMIN."
+    }, 400);
+  }
+
+  if (!checkAdminAuth(adminParam)) {
+    return responseJSON({
+      success: false,
+      valid: false,
+      code: "ADMIN_TOKEN_INVALID",
+      error: "Credencial inválida ou não cadastrada no Apps Script."
+    }, 401);
+  }
+
+  return responseJSON({
+    success: true,
+    valid: true,
+    code: "ADMIN_TOKEN_VALID",
+    message: "Credencial válida e ativa no Apps Script."
+  });
+}
+
 function parseDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -386,6 +413,10 @@ function doGet(e) {
 
     const dados = e?.parameters?.dado || [];
     const pacienteId = e?.parameter?.pacienteId;
+
+    if (String(e?.parameter?.acao || '').toUpperCase() === 'VALIDATE_ADMIN_TOKEN') {
+      return validateAdminTokenRoute(adminParam);
+    }
 
     // Se admin for informado porém for inválido
     if (adminParam && !isAdmin) {
