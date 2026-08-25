@@ -202,6 +202,14 @@ function formatDateISO(dateVal) {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}Z`;
 }
 
+function getAlterationDateISO() {
+  return Utilities.formatDate(
+    new Date(),
+    'America/Sao_Paulo',
+    "yyyy-MM-dd'T'HH:mm:ss'Z'"
+  );
+}
+
 function sheetToObjects(sheetName, ClassConstructor, mapRowCallback) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(sheetName);
@@ -321,7 +329,7 @@ function createRecord(entityKey, data) {
   if (!sheet) throw new Error(`Aba '${config.sheetName}' não encontrada.`);
 
   const id = data.id || Utilities.getUuid();
-  const nowISO = formatDateISO(new Date());
+  const nowISO = getAlterationDateISO();
 
   data.id = id;
   data.dataHoraAlteracao = nowISO;
@@ -335,6 +343,10 @@ function createRecord(entityKey, data) {
   });
 
   sheet.appendRow(rowToInsert);
+  const alterationColumn = config.columns.indexOf("dataHoraAlteracao") + 1;
+  if (alterationColumn > 0) {
+    sheet.getRange(sheet.getLastRow(), alterationColumn).setNumberFormat('@').setValue(nowISO);
+  }
 
   const instance = new config.classRef(...rowToInsert);
   return instance;
@@ -362,7 +374,7 @@ function updateRecord(entityKey, data) {
 
   if (rowIndex === -1) throw new Error(`Registro com ID '${data.id}' não foi encontrado.`);
 
-  const nowISO = formatDateISO(new Date());
+  const nowISO = getAlterationDateISO();
   data.dataHoraAlteracao = nowISO;
 
   const rowToUpdate = config.columns.map((col, idx) => {
@@ -376,6 +388,10 @@ function updateRecord(entityKey, data) {
   });
 
   sheet.getRange(rowIndex, 1, 1, rowToUpdate.length).setValues([rowToUpdate]);
+  const alterationColumn = config.columns.indexOf("dataHoraAlteracao") + 1;
+  if (alterationColumn > 0) {
+    sheet.getRange(rowIndex, alterationColumn).setNumberFormat('@').setValue(nowISO);
+  }
 
   return new config.classRef(...rowToUpdate);
 }

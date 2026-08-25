@@ -14,7 +14,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
     { key: 'nomePerfil', label: 'Nome do Perfil', type: 'text', required: true }
   ],
   PACIENTE: [
-    { key: 'nomePaciente', label: 'Nome do Paciente', type: 'text', required: true },
+    { key: 'nomePaciente', label: 'Nome', type: 'text', required: true },
     { key: 'apelido', label: 'Apelido', type: 'text', required: true, hiddenInList: true },
     { key: 'dataInicio', label: 'Data Início', type: 'datetime-local', required: true },
     { key: 'dataFim', label: 'Data Fim', type: 'datetime-local' }
