@@ -11,7 +11,7 @@ import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
-import { Perfil } from '@/types/form';
+import { Categoria, Perfil } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
@@ -73,14 +73,22 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
   const [profiles, setProfiles] = useState<Perfil[]>([]);
+  const [categories, setCategories] = useState<Categoria[]>([]);
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
+  const [profileQuestionGroups, setProfileQuestionGroups] = useState<BulkGroup[]>([]);
+  const [categoryQuestionGroups, setCategoryQuestionGroups] = useState<BulkGroup[]>([]);
   const [isProfilesLoading, setIsProfilesLoading] = useState(false);
   const [isProfilesReady, setIsProfilesReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
+  const [selectedQuestionProfileIds, setSelectedQuestionProfileIds] = useState<Array<string | number>>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Array<string | number>>([]);
+  const [questionProfileToAdd, setQuestionProfileToAdd] = useState('');
+  const [categoryToAdd, setCategoryToAdd] = useState('');
   const [profileToAdd, setProfileToAdd] = useState('');
   const [search, setSearch] = useState('');
   const managesPatientProfiles = entity === 'PACIENTE';
+  const managesQuestionRelations = entity === 'PERGUNTA';
   const [adminToken, setAdminToken] = useState('');
 
   useEffect(() => {
@@ -140,20 +148,26 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   }, [entity, adminToken]);
 
   useEffect(() => {
-    if (!managesPatientProfiles) return;
+    if (!managesPatientProfiles && !managesQuestionRelations) return;
 
     let isMounted = true;
     setIsProfilesLoading(true);
     setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, relationGroups] = await Promise.all([
+        const [profileData, categoryData, patientGroups, profileGroups, categoryGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
-          fetchBulkRecords('PACIENTE_PERFIL', adminToken),
+          fetchRecords<Categoria>('CATEGORIA', adminToken),
+          managesPatientProfiles ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
+          managesQuestionRelations ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
+          managesQuestionRelations ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
         ]);
         if (isMounted) {
           setProfiles(profileData);
-          setPatientProfileGroups(relationGroups);
+          setCategories(categoryData);
+          setPatientProfileGroups(patientGroups);
+          setProfileQuestionGroups(profileGroups);
+          setCategoryQuestionGroups(categoryGroups);
           setIsProfilesReady(true);
         }
       } catch (loadError) {
@@ -169,12 +183,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     return () => {
       isMounted = false;
     };
-  }, [adminToken, managesPatientProfiles]);
+  }, [adminToken, managesPatientProfiles, managesQuestionRelations]);
 
   const handleOpenCreate = () => {
     setEditingRecord(null);
     setSelectedProfileIds([]);
     setProfileToAdd('');
+    setSelectedQuestionProfileIds([]);
+    setSelectedCategoryIds([]);
+    setQuestionProfileToAdd('');
+    setCategoryToAdd('');
     setIsFormOpen(true);
   };
 
@@ -183,7 +201,15 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setSelectedProfileIds(
       patientProfileGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
+    setSelectedQuestionProfileIds(
+      profileQuestionGroups.filter((group) => group.items.some((item) => String(item) === String(record.id))).map((group) => group.parentId),
+    );
+    setSelectedCategoryIds(
+      categoryQuestionGroups.filter((group) => group.items.some((item) => String(item) === String(record.id))).map((group) => group.parentId),
+    );
     setProfileToAdd('');
+    setQuestionProfileToAdd('');
+    setCategoryToAdd('');
     setIsFormOpen(true);
   };
 
@@ -220,6 +246,28 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         setPatientProfileGroups((current) => [
           ...current.filter((group) => String(group.parentId) !== String(patientId)),
           syncedGroup,
+        ]);
+      }
+
+      if (managesQuestionRelations) {
+        const syncRelations = async (relationEntity: 'PERFIL_PERGUNTA' | 'CATEGORIA_PERGUNTA', groups: BulkGroup[], selectedParentIds: Array<string | number>) => {
+          const selectedParentSet = new Set(selectedParentIds.map(String));
+          const parentIds = new Set([
+            ...groups.map((group) => String(group.parentId)),
+            ...selectedParentIds.map(String),
+          ]);
+
+          await Promise.all(Array.from(parentIds).map((parentId) => {
+            const currentGroup = groups.find((group) => String(group.parentId) === parentId);
+            const currentItems = (currentGroup?.items ?? []).filter((item) => String(item) !== String(savedPatient.id));
+            const nextItems = selectedParentSet.has(parentId) ? [...currentItems, savedPatient.id] : currentItems;
+            return syncBulkRecords(relationEntity, parentId, nextItems, adminToken);
+          }));
+        };
+
+        await Promise.all([
+          syncRelations('PERFIL_PERGUNTA', profileQuestionGroups, selectedQuestionProfileIds),
+          syncRelations('CATEGORIA_PERGUNTA', categoryQuestionGroups, selectedCategoryIds),
         ]);
       }
     } finally {
@@ -268,6 +316,18 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const selectedProfiles = profiles.filter((profile) =>
     selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
   );
+  const availableQuestionProfiles = profiles.filter((profile) =>
+    !selectedQuestionProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
+  );
+  const availableCategories = categories.filter((category) =>
+    !selectedCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
+  );
+  const selectedQuestionProfiles = profiles.filter((profile) =>
+    selectedQuestionProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
+  );
+  const selectedCategories = categories.filter((category) =>
+    selectedCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
+  );
   const availableProfiles = profiles.filter((profile) =>
     !selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
   );
@@ -280,6 +340,26 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
   const handleRemoveProfile = (profileId: string | number) => {
     setSelectedProfileIds((current) => current.filter((id) => String(id) !== String(profileId)));
+  };
+
+  const addQuestionProfile = (profileId: string) => {
+    if (!profileId) return;
+    setSelectedQuestionProfileIds((current) => [...current, profileId]);
+    setQuestionProfileToAdd('');
+  };
+
+  const addCategory = (categoryId: string) => {
+    if (!categoryId) return;
+    setSelectedCategoryIds((current) => [...current, categoryId]);
+    setCategoryToAdd('');
+  };
+
+  const removeQuestionProfile = (profileId: string | number) => {
+    setSelectedQuestionProfileIds((current) => current.filter((id) => String(id) !== String(profileId)));
+  };
+
+  const removeCategory = (categoryId: string | number) => {
+    setSelectedCategoryIds((current) => current.filter((id) => String(id) !== String(categoryId)));
   };
 
   return (
@@ -395,7 +475,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
                 className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
               >
-                <option value="">Selecionar perfil</option>
+                <option value="">Seleciona perfil </option>
                 {availableProfiles.map((profile) => (
                   <option key={String(profile.id)} value={String(profile.id)}>
                     {profile.nomePerfil}
@@ -443,6 +523,75 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 ))
               )}
             </ul>
+          </div>
+        ) : null}
+        {managesQuestionRelations ? (
+          <div className="space-y-4">
+            {[
+              {
+                title: 'Categorias',
+                selected: selectedCategories,
+                available: availableCategories,
+                value: categoryToAdd,
+                setValue: setCategoryToAdd,
+                add: addCategory,
+                remove: removeCategory,
+                label: (item: Categoria) => item.nomeCategoria,
+              },
+              {
+                title: 'Perfis',
+                selected: selectedQuestionProfiles,
+                available: availableQuestionProfiles,
+                value: questionProfileToAdd,
+                setValue: setQuestionProfileToAdd,
+                add: addQuestionProfile,
+                remove: removeQuestionProfile,
+                label: (item: Perfil) => item.nomePerfil,
+              }
+            ].map((relation) => (
+              <section key={relation.title} className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                  <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">{relation.title}</h3>
+                  <span className="shrink-0 text-xs text-slate-500">{relation.selected.length} itens</span>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={relation.value}
+                    onChange={(event) => relation.setValue(event.target.value)}
+                    disabled={isProfilesLoading || !isProfilesReady || relation.available.length === 0}
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
+                  >
+                    <option value="">Selecionar {relation.title.toLowerCase()}</option>
+                    {relation.available.map((item) => (
+                      <option key={String(item.id)} value={String(item.id)}>{relation.label(item)}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => relation.add(relation.value)}
+                    disabled={!relation.value || isProfilesLoading}
+                    aria-label={`Adicionar ${relation.title.toLowerCase().slice(0, -1)}`}
+                    title="Adicionar"
+                    className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  >
+                    <FiPlus className="h-5 w-5" />
+                  </button>
+                </div>
+                <ul className="space-y-3">
+                  {relation.selected.length === 0 ? (
+                    <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhum item adicionado.</li>
+                  ) : relation.selected.map((item) => (
+                    <li key={String(item.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-4 w-4" /></span>
+                        <span className="min-w-0 break-words text-sm font-medium text-slate-800">{relation.label(item)}</span>
+                        <button type="button" onClick={() => relation.remove(item.id)} aria-label={`Remover ${relation.title.toLowerCase().slice(0, -1)}`} title="Remover" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600"><FiTrash2 className="h-4 w-4" /></button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </div>
         ) : null}
       </CrudForm>
