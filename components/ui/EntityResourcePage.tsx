@@ -7,6 +7,7 @@ import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
 import { CrudTable } from '@/components/ui/CrudTable';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
+import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
 import { DualList } from '@/components/ui/DualList';
@@ -76,6 +77,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
   const [isProfilesLoading, setIsProfilesLoading] = useState(false);
   const [isProfilesReady, setIsProfilesReady] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
   const managesPatientProfiles = entity === 'PACIENTE';
   const [adminToken, setAdminToken] = useState('');
@@ -188,31 +190,37 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   };
 
   const handleSubmit = async (data: Record<string, any>) => {
-    const normalizedData = fields.reduce<Record<string, any>>((accumulator, field) => {
-      accumulator[field.key] = standardizeValue(field, data[field.key]);
-      return accumulator;
-    }, {});
+    setIsSaving(true);
 
-    let savedPatient: Record<string, any>;
-    if (editingRecord) {
-      const updatedRecord = await updateRecord(entity, { ...normalizedData, id: editingRecord.id }, adminToken);
-      savedPatient = updatedRecord;
-      setRecords((current) =>
-        current.map((record) => (String(record.id) === String(editingRecord.id) ? updatedRecord : record)),
-      );
-    } else {
-      const createdRecord = await createRecord(entity, normalizedData, adminToken);
-      savedPatient = createdRecord;
-      setRecords((current) => [...current, createdRecord]);
-    }
+    try {
+      const normalizedData = fields.reduce<Record<string, any>>((accumulator, field) => {
+        accumulator[field.key] = standardizeValue(field, data[field.key]);
+        return accumulator;
+      }, {});
 
-    if (managesPatientProfiles) {
-      const patientId = savedPatient.id;
-      const syncedGroup = await syncBulkRecords('PACIENTE_PERFIL', patientId, selectedProfileIds, adminToken);
-      setPatientProfileGroups((current) => [
-        ...current.filter((group) => String(group.parentId) !== String(patientId)),
-        syncedGroup,
-      ]);
+      let savedPatient: Record<string, any>;
+      if (editingRecord) {
+        const updatedRecord = await updateRecord(entity, { ...normalizedData, id: editingRecord.id }, adminToken);
+        savedPatient = updatedRecord;
+        setRecords((current) =>
+          current.map((record) => (String(record.id) === String(editingRecord.id) ? updatedRecord : record)),
+        );
+      } else {
+        const createdRecord = await createRecord(entity, normalizedData, adminToken);
+        savedPatient = createdRecord;
+        setRecords((current) => [...current, createdRecord]);
+      }
+
+      if (managesPatientProfiles) {
+        const patientId = savedPatient.id;
+        const syncedGroup = await syncBulkRecords('PACIENTE_PERFIL', patientId, selectedProfileIds, adminToken);
+        setPatientProfileGroups((current) => [
+          ...current.filter((group) => String(group.parentId) !== String(patientId)),
+          syncedGroup,
+        ]);
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -238,6 +246,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const formInitialData = editingRecord
     ? { ...createEmptyRecord(fields), ...editingRecord }
     : createEmptyRecord(fields);
+  const isBusy = isLoading || isProfilesLoading || isSaving || deletingId !== null;
 
   return (
     <div className="min-h-screen bg-slate-100 p-6">
@@ -308,8 +317,17 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       <ErrorDialog error={error} onClose={() => setError(null)} />
 
       {toastMessage ? (
-        <div className="fixed bottom-5 right-5 z-[80] rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed right-5 top-5 z-[80] rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all animate-in fade-in slide-in-from-top-2">
           {toastMessage}
+        </div>
+      ) : null}
+
+      {isBusy ? (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-slate-900/50 p-6 backdrop-blur-[2px]" role="status" aria-live="polite">
+          <Spinner size="lg" className="border-white border-t-transparent" />
+          <p className="text-sm font-semibold text-white">
+            {isSaving || deletingId !== null ? 'Processando...' : 'Carregando dados...'}
+          </p>
         </div>
       ) : null}
     </div>
