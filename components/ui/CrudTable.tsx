@@ -31,6 +31,8 @@ const formatDisplayDate = (value: any) => {
 };
 
 export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: CrudTableProps) {
+  const visibleFields = fields.filter((field) => !field.hiddenInList);
+
   const renderCellValue = (field: FieldConfig, value: any) => {
     if (value === null || value === undefined || value === '') {
       return '—';
@@ -49,7 +51,7 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
         <thead className="bg-slate-100 text-slate-600">
           <tr>
             <th className="hidden">ID</th>
-            {fields.map((field) => (
+            {visibleFields.map((field) => (
               <th key={field.key} className="px-4 py-3 font-semibold">
                 {field.label}
               </th>
@@ -61,7 +63,7 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
         <tbody>
           {records.length === 0 ? (
             <tr>
-              <td colSpan={fields.length + 3} className="px-4 py-10 text-center text-slate-500">
+              <td colSpan={visibleFields.length + 3} className="px-4 py-10 text-center text-slate-500">
                 Nenhum registro encontrado.
               </td>
             </tr>
@@ -72,7 +74,7 @@ export function CrudTable({ fields, records, deletingId, onEdit, onDelete }: Cru
               return (
                 <tr key={String(record.id)} className="border-t border-slate-200 hover:bg-slate-50">
                   <td className="hidden">{record.id}</td>
-                  {fields.map((field) => (
+                  {visibleFields.map((field) => (
                     <td key={`${String(record.id)}-${field.key}`} className="px-4 py-3">
                       {renderCellValue(field, record[field.key])}
                     </td>
