@@ -12,7 +12,7 @@ import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
-import { Categoria, Paciente, Perfil, Resposta } from '@/types/form';
+import { Categoria, Paciente, Perfil, Pergunta, Resposta } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
@@ -92,6 +92,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
   const [profiles, setProfiles] = useState<Perfil[]>([]);
   const [categories, setCategories] = useState<Categoria[]>([]);
+  const [questions, setQuestions] = useState<Pergunta[]>([]);
   const [patients, setPatients] = useState<Paciente[]>([]);
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
   const [profileQuestionGroups, setProfileQuestionGroups] = useState<BulkGroup[]>([]);
@@ -116,6 +117,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [profileToAdd, setProfileToAdd] = useState('');
   const [search, setSearch] = useState('');
   const [isPatientUrlCopied, setIsPatientUrlCopied] = useState(false);
+  const [formPatientId, setFormPatientId] = useState<string | number | null>(null);
+  const [relationModal, setRelationModal] = useState<'profiles' | 'categories' | null>(null);
+  const [relationSearch, setRelationSearch] = useState('');
   const managesPatientProfiles = entity === 'PACIENTE';
   const managesQuestionRelations = entity === 'PERGUNTA';
   const managesFormularios = entity === 'FORMULARIO';
@@ -185,19 +189,21 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, categoryData, patientData, patientGroups, profileGroups, categoryGroups, formCategories, responseGroups] = await Promise.all([
+        const [profileData, categoryData, questionData, patientData, patientGroups, profileGroups, categoryGroups, formCategories, responseGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
           fetchRecords<Categoria>('CATEGORIA', adminToken),
+          managesFormularios ? fetchRecords<Pergunta>('PERGUNTA', adminToken) : Promise.resolve([]),
           managesFormularios ? fetchRecords<Paciente>('PACIENTE', adminToken) : Promise.resolve([]),
-          managesPatientProfiles ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
-          managesQuestionRelations ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
-          managesQuestionRelations ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
+          managesPatientProfiles || managesFormularios ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
+          managesQuestionRelations || managesFormularios ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
+          managesQuestionRelations || managesFormularios ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
           managesFormularios ? fetchBulkRecords('FORMULARIO_CATEGORIA', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords<Resposta>('RESPOSTA', adminToken) : Promise.resolve([]),
         ]);
         if (isMounted) {
           setProfiles(profileData);
           setCategories(categoryData);
+          setQuestions(questionData);
           setPatients(patientData);
           setPatientProfileGroups(patientGroups);
           setProfileQuestionGroups(profileGroups);
@@ -223,6 +229,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
   const handleOpenCreate = () => {
     setEditingRecord(null);
+    setFormPatientId(null);
     setSelectedProfileIds([]);
     setProfileToAdd('');
     setSelectedQuestionProfileIds([]);
@@ -238,6 +245,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
   const handleOpenEdit = (record: Record<string, any>) => {
     setEditingRecord(record);
+    setFormPatientId(managesFormularios ? record.idPaciente : null);
     setSelectedProfileIds(
       patientProfileGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
@@ -515,6 +523,45 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     },
   ];
 
+  const relationModalTitle = relationModal === 'profiles' ? 'Selecionar perfil' : 'Selecionar categoria';
+  const relationOptions = relationModal === 'profiles'
+    ? (managesPatientProfiles ? availableProfiles : availableQuestionProfiles)
+    : (managesFormularios ? availableFormCategories : availableCategories);
+  const filteredRelationOptions = relationOptions.filter((item) => {
+    const label = relationModal === 'profiles' ? (item as Perfil).nomePerfil : (item as Categoria).nomeCategoria;
+    return label.toLowerCase().includes(relationSearch.trim().toLowerCase());
+  });
+  const selectedPatientProfileIds = managesFormularios && formPatientId !== null
+    ? patientProfileGroups.find((group) => String(group.parentId) === String(formPatientId))?.items ?? []
+    : [];
+  const formQuestionsByCategory = (categoryId: string | number) => {
+    const categoryQuestionIds = categoryQuestionGroups.find((group) => String(group.parentId) === String(categoryId))?.items ?? [];
+    return questions.filter((question) => {
+      if (!categoryQuestionIds.some((questionId) => String(questionId) === String(question.id))) return false;
+      const profileIds = profileQuestionGroups
+        .filter((group) => String(group.parentId) === String(question.id))
+        .flatMap((group) => group.items);
+      return profileIds.length === 0
+        ? Number(question.principal) === 1
+        : profileIds.some((profileId) => selectedPatientProfileIds.some((selectedId) => String(selectedId) === String(profileId)));
+    });
+  };
+  const handleRelationSelect = (id: string | number) => {
+    if (relationModal === 'profiles') {
+      if (managesPatientProfiles) {
+        setSelectedProfileIds((current) => current.some((item) => String(item) === String(id)) ? current : [...current, id]);
+      } else {
+        addQuestionProfile(String(id));
+      }
+    } else if (managesFormularios) {
+      addFormCategory(String(id));
+    } else {
+      addCategory(String(id));
+    }
+    setRelationModal(null);
+    setRelationSearch('');
+  };
+
   const responseInitialData = useMemo(
     () => (editingResponse ? { ...createEmptyRecord(ENTITY_FIELDS.RESPOSTA), ...editingResponse } : createEmptyRecord(ENTITY_FIELDS.RESPOSTA)),
     [editingResponse],
@@ -667,7 +714,12 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         onDelete={editingRecord ? () => requestDelete(editingRecord.id) : undefined}
         onSuccessToast={showToast}
         reloadOnSuccess
-        onDataChange={(data) => setQuestionType(Number(data.tipoPergunta) || 1)}
+        onDataChange={(data) => {
+          setQuestionType(Number(data.tipoPergunta) || 1);
+          if (managesFormularios) {
+            setFormPatientId(data.idPaciente || null);
+          }
+        }}
       >
         {managesPatientProfiles ? (
           <>
@@ -677,29 +729,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               <span className="shrink-0 text-xs text-slate-500">{selectedProfiles.length} itens</span>
             </div>
 
-            <div className="flex gap-2">
-              <select
-                value={profileToAdd}
-                onChange={(event) => setProfileToAdd(event.target.value)}
-                disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
-              >
-                <option value="">Seleciona perfil </option>
-                {availableProfiles.map((profile) => (
-                  <option key={String(profile.id)} value={String(profile.id)}>
-                    {profile.nomePerfil}
-                  </option>
-                ))}
-              </select>
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleAddProfile}
-                disabled={!profileToAdd || isProfilesLoading}
+                onClick={() => { setRelationModal('profiles'); setRelationSearch(''); }}
+                disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
                 aria-label="Adicionar perfil"
                 title="Adicionar perfil"
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
-                <FiPlus className="h-5 w-5" />
+                <FiPlus className="h-4 w-4" />
               </button>
             </div>
 
@@ -768,29 +807,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               </h3>
               <span className="shrink-0 text-xs text-slate-500">{selectedFormCategories.length} itens</span>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={formCategoryToAdd}
-                onChange={(event) => setFormCategoryToAdd(event.target.value)}
-                disabled={isProfilesLoading || !isProfilesReady || availableFormCategories.length === 0}
-                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
-              >
-                <option value="">Selecionar categoria</option>
-                {availableFormCategories.map((category) => (
-                  <option key={String(category.id)} value={String(category.id)}>
-                    {category.nomeCategoria}
-                  </option>
-                ))}
-              </select>
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => addFormCategory(formCategoryToAdd)}
-                disabled={!formCategoryToAdd || isProfilesLoading}
+                onClick={() => { setRelationModal('categories'); setRelationSearch(''); }}
+                disabled={isProfilesLoading || !isProfilesReady || availableFormCategories.length === 0}
                 aria-label="Adicionar categoria ao formulário"
                 title="Adicionar categoria"
-                className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
               >
-                <FiPlus className="h-5 w-5" />
+                <FiPlus className="h-4 w-4" />
               </button>
             </div>
             <ul className="space-y-3">
@@ -866,27 +892,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                   <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">{relation.title}</h3>
                   <span className="shrink-0 text-xs text-slate-500">{relation.selected.length} itens</span>
                 </div>
-                <div className="flex gap-2">
-                  <select
-                    value={relation.value}
-                    onChange={(event) => relation.setValue(event.target.value)}
-                    disabled={isProfilesLoading || !isProfilesReady || relation.available.length === 0}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
-                  >
-                    <option value="">Selecionar {relation.title.toLowerCase()}</option>
-                    {relation.available.map((item) => (
-                      <option key={String(item.id)} value={String(item.id)}>{item.label}</option>
-                    ))}
-                  </select>
+                <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => relation.add(relation.value)}
-                    disabled={!relation.value || isProfilesLoading}
-                    aria-label={`Adicionar ${relation.title.toLowerCase().slice(0, -1)}`}
+                    onClick={() => { setRelationModal(relation.title === 'Exclusivo para Perfis' ? 'profiles' : 'categories'); setRelationSearch(''); }}
+                    disabled={isProfilesLoading || !isProfilesReady || relation.available.length === 0}
+                    aria-label={`Adicionar ${relation.title.toLowerCase()}`}
                     title="Adicionar"
-                    className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                   >
-                    <FiPlus className="h-5 w-5" />
+                    <FiPlus className="h-4 w-4" />
                   </button>
                 </div>
                 <ul className="space-y-3">
@@ -907,6 +922,73 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
           </div>
         ) : null}
       </CrudForm>
+
+      {relationModal ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/55 p-3 sm:p-6">
+          <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand" role="dialog" aria-modal="true" aria-labelledby="relation-modal-title">
+            <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
+              <h2 id="relation-modal-title" className="text-lg font-bold text-slate-900">{relationModalTitle}</h2>
+              <button
+                type="button"
+                onClick={() => setRelationModal(null)}
+                className="grid h-9 w-9 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                aria-label="Fechar seleção"
+                title="Fechar"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="space-y-4 p-4 sm:p-6">
+              <div className="relative">
+                <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={relationSearch}
+                  onChange={(event) => setRelationSearch(event.target.value)}
+                  placeholder={relationModalTitle}
+                  aria-label={relationModalTitle}
+                  className="w-full rounded-xl border border-slate-200 bg-brand-cream/40 py-3 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10"
+                />
+              </div>
+              <div className="space-y-2">
+                {filteredRelationOptions.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhum item encontrado.</p>
+                ) : filteredRelationOptions.map((item) => {
+                  const label = relationModal === 'profiles' ? (item as Perfil).nomePerfil : (item as Categoria).nomeCategoria;
+                  const details = relationModal === 'categories' && managesFormularios ? formQuestionsByCategory(item.id) : [];
+
+                  return (
+                    <div key={String(item.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleRelationSelect(item.id)}
+                        className="flex w-full items-center gap-3 text-left"
+                      >
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-brand-greenDark text-brand-greenDark">
+                          <FiPlus className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0 break-words text-sm font-medium text-slate-800">{label}</span>
+                      </button>
+                      {details.length > 0 ? (
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Perguntas</p>
+                          <ul className="space-y-1.5">
+                            {details.map((question) => (
+                              <li key={String(question.id)} className="text-sm text-slate-700">
+                                {question.textoPergunta}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <CrudForm
         isOpen={isResponseFormOpen}
