@@ -535,12 +535,12 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     ? patientProfileGroups.find((group) => String(group.parentId) === String(formPatientId))?.items ?? []
     : [];
   const formQuestionsByCategory = (categoryId: string | number) => {
-    const categoryQuestionIds = categoryQuestionGroups.find((group) => String(group.parentId) === String(categoryId))?.items ?? [];
+    const categoryQuestionIds = categoryQuestionGroups
+      .filter((group) => group.items.some((item) => String(item) === String(categoryId)))
+      .map((group) => group.parentId);
     return questions.filter((question) => {
       if (!categoryQuestionIds.some((questionId) => String(questionId) === String(question.id))) return false;
-      const profileIds = profileQuestionGroups
-        .filter((group) => String(group.parentId) === String(question.id))
-        .flatMap((group) => group.items);
+      const profileIds = profileQuestionGroups.find((group) => String(group.parentId) === String(question.id))?.items ?? [];
       return profileIds.length === 0
         ? Number(question.principal) === 1
         : profileIds.some((profileId) => selectedPatientProfileIds.some((selectedId) => String(selectedId) === String(profileId)));
@@ -558,7 +558,6 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     } else {
       addCategory(String(id));
     }
-    setRelationModal(null);
     setRelationSearch('');
   };
 
@@ -724,22 +723,21 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         {managesPatientProfiles ? (
           <>
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div className="flex items-center justify-between gap-3">
               <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Perfis</h3>
-              <span className="shrink-0 text-xs text-slate-500">{selectedProfiles.length} itens</span>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => { setRelationModal('profiles'); setRelationSearch(''); }}
-                disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
-                aria-label="Adicionar perfil"
-                title="Adicionar perfil"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-              >
-                <FiPlus className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs text-slate-500">{selectedProfiles.length} itens</span>
+                <button
+                  type="button"
+                  onClick={() => { setRelationModal('profiles'); setRelationSearch(''); }}
+                  disabled={isProfilesLoading || !isProfilesReady || availableProfiles.length === 0}
+                  aria-label="Adicionar perfil"
+                  title="Adicionar perfil"
+                  className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <ul className="space-y-3">
@@ -801,23 +799,23 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         ) : null}
         {managesFormularios ? (
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div className="flex items-center justify-between gap-3">
               <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">
                 Categorias do formulário<span className="ml-1 text-red-500" aria-hidden="true">*</span>
               </h3>
-              <span className="shrink-0 text-xs text-slate-500">{selectedFormCategories.length} itens</span>
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => { setRelationModal('categories'); setRelationSearch(''); }}
-                disabled={isProfilesLoading || !isProfilesReady || availableFormCategories.length === 0}
-                aria-label="Adicionar categoria ao formulário"
-                title="Adicionar categoria"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-              >
-                <FiPlus className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-xs text-slate-500">{selectedFormCategories.length} itens</span>
+                <button
+                  type="button"
+                  onClick={() => { setRelationModal('categories'); setRelationSearch(''); }}
+                  disabled={isProfilesLoading || !isProfilesReady || availableFormCategories.length === 0}
+                  aria-label="Adicionar categoria ao formulário"
+                  title="Adicionar categoria"
+                  className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <ul className="space-y-3">
               {isProfilesLoading || !isProfilesReady ? (
@@ -888,21 +886,21 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
           <div className="space-y-4">
             {relationViews.map((relation) => (
               <section key={relation.title} className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <div className="flex items-center justify-between gap-3">
                   <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">{relation.title}</h3>
-                  <span className="shrink-0 text-xs text-slate-500">{relation.selected.length} itens</span>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => { setRelationModal(relation.title === 'Exclusivo para Perfis' ? 'profiles' : 'categories'); setRelationSearch(''); }}
-                    disabled={isProfilesLoading || !isProfilesReady || relation.available.length === 0}
-                    aria-label={`Adicionar ${relation.title.toLowerCase()}`}
-                    title="Adicionar"
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-                  >
-                    <FiPlus className="h-4 w-4" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-slate-500">{relation.selected.length} itens</span>
+                    <button
+                      type="button"
+                      onClick={() => { setRelationModal(relation.title === 'Exclusivo para Perfis' ? 'profiles' : 'categories'); setRelationSearch(''); }}
+                      disabled={isProfilesLoading || !isProfilesReady || relation.available.length === 0}
+                      aria-label={`Adicionar ${relation.title.toLowerCase()}`}
+                      title="Adicionar"
+                      className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    >
+                      <FiPlus className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <ul className="space-y-3">
                   {relation.selected.length === 0 ? (
@@ -925,7 +923,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
       {relationModal ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/55 p-3 sm:p-6">
-          <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand" role="dialog" aria-modal="true" aria-labelledby="relation-modal-title">
+          <section className="scrollbar-hidden max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand" role="dialog" aria-modal="true" aria-labelledby="relation-modal-title">
             <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
               <h2 id="relation-modal-title" className="text-lg font-bold text-slate-900">{relationModalTitle}</h2>
               <button
@@ -975,7 +973,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                           <ul className="space-y-1.5">
                             {details.map((question) => (
                               <li key={String(question.id)} className="text-sm text-slate-700">
-                                {question.textoPergunta}
+                                · {question.textoPergunta}
                               </li>
                             ))}
                           </ul>

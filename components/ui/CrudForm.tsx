@@ -148,7 +148,7 @@ export function CrudForm({
   return (
     <>
       <div className={presentation === 'modal' ? 'fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/55 p-3 sm:p-6' : 'min-h-screen bg-brand-cream'}>
-        <div className={presentation === 'modal' ? 'max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand' : 'min-h-screen w-full bg-white shadow-sm'}>
+        <div className={presentation === 'modal' ? 'scrollbar-hidden max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-brand' : 'min-h-screen w-full bg-white shadow-sm'}>
           <header className="sticky top-0 z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
             <button
               type="button"
