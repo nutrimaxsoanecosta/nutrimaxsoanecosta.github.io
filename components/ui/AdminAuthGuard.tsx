@@ -3,6 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { FiLock, FiShield, FiX } from 'react-icons/fi';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { validateAdminToken } from '@/services/apiService';
 
 export const ADMIN_TOKEN_STORAGE_KEY = 'adminToken';
@@ -17,6 +18,7 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   const [credential, setCredential] = useState('');
   const [isChecking, setIsChecking] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,6 +62,11 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   };
 
   const handleLogout = () => {
+    setIsLogoutDialogOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setIsLogoutDialogOpen(false);
     sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
     setToken('');
   };
@@ -147,6 +154,13 @@ export function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         </div>
       ) : null}
       {children}
+      <ConfirmationDialog
+        isOpen={isLogoutDialogOpen}
+        title="Sair do painel?"
+        message=""
+        onCancel={() => setIsLogoutDialogOpen(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </>
   );
 }

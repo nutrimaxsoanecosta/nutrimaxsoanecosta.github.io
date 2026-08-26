@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { FieldConfig } from '@/config/entityFields';
 import { FiArrowDown, FiArrowLeft, FiLoader, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
 
 interface CrudFormProps {
@@ -64,7 +65,9 @@ export function CrudForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [openSelectKey, setOpenSelectKey] = useState<string | null>(null);
   const [selectSearch, setSelectSearch] = useState('');
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const selectContainerRef = useRef<HTMLDivElement>(null);
+  const skipCloseConfirmationRef = useRef(false);
 
   useEffect(() => {
     setFormData(initialData);
@@ -115,6 +118,7 @@ export function CrudForm({
       if (onSuccessToast) {
         onSuccessToast('Registro salvo com sucesso!');
       }
+      skipCloseConfirmationRef.current = true;
       onClose();
       if (reloadOnSuccess) {
         window.location.reload();
@@ -126,6 +130,21 @@ export function CrudForm({
     }
   };
 
+  const handleClose = () => {
+    if (skipCloseConfirmationRef.current) {
+      skipCloseConfirmationRef.current = false;
+      onClose();
+      return;
+    }
+
+    setIsCloseDialogOpen(true);
+  };
+
+  const handleConfirmClose = () => {
+    setIsCloseDialogOpen(false);
+    onClose();
+  };
+
   return (
     <>
       <div className={presentation === 'modal' ? 'fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/55 p-3 sm:p-6' : 'min-h-screen bg-brand-cream'}>
@@ -133,7 +152,7 @@ export function CrudForm({
           <header className="sticky top-0 z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-6">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isSubmitting}
               className="grid h-10 w-10 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
               aria-label="Voltar"
@@ -330,6 +349,13 @@ export function CrudForm({
         </div>
       </div>
 
+      <ConfirmationDialog
+        isOpen={isCloseDialogOpen}
+        title="Descartar alterações?"
+        message=""
+        onCancel={() => setIsCloseDialogOpen(false)}
+        onConfirm={handleConfirmClose}
+      />
       <ErrorDialog error={formError} onClose={() => setFormError(null)} />
     </>
   );

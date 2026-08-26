@@ -7,6 +7,7 @@ import { ENTITY_FIELDS, FieldConfig } from '@/config/entityFields';
 import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
 import { CrudTable } from '@/components/ui/CrudTable';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
@@ -109,6 +110,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [formCategoryToAdd, setFormCategoryToAdd] = useState('');
   const [responses, setResponses] = useState<Resposta[]>([]);
   const [isResponseFormOpen, setIsResponseFormOpen] = useState(false);
+  const [deletionCandidate, setDeletionCandidate] = useState<string | number | null>(null);
   const [editingResponse, setEditingResponse] = useState<Resposta | null>(null);
   const [questionType, setQuestionType] = useState(1);
   const [profileToAdd, setProfileToAdd] = useState('');
@@ -344,11 +346,6 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   };
 
   const handleDelete = async (recordId: string | number) => {
-    const shouldDelete = window.confirm('Deseja realmente excluir este registro?');
-    if (!shouldDelete) {
-      return;
-    }
-
     try {
       setDeletingId(recordId);
       setError(null);
@@ -362,7 +359,12 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       setError(deleteError instanceof Error ? deleteError.message : 'Erro ao excluir registro.');
     } finally {
       setDeletingId(null);
+      setDeletionCandidate(null);
     }
+  };
+
+  const requestDelete = (recordId: string | number) => {
+    setDeletionCandidate(recordId);
   };
 
   const formInitialData = useMemo(
@@ -657,7 +659,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         initialData={formInitialData}
         onClose={handleCloseForm}
         onSubmit={handleSubmit}
-        onDelete={editingRecord ? () => void handleDelete(editingRecord.id) : undefined}
+        onDelete={editingRecord ? () => requestDelete(editingRecord.id) : undefined}
         onSuccessToast={showToast}
         reloadOnSuccess
         onDataChange={(data) => setQuestionType(Number(data.tipoPergunta) || 1)}
@@ -914,6 +916,18 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       />
 
       <ErrorDialog error={error} onClose={() => setError(null)} />
+      <ConfirmationDialog
+        isOpen={deletionCandidate !== null}
+        title="Excluir registro?"
+        message="Deseja  o excluir o registro?"
+        confirmLabel="Excluir"
+        onCancel={() => setDeletionCandidate(null)}
+        onConfirm={() => {
+          if (deletionCandidate !== null) {
+            void handleDelete(deletionCandidate);
+          }
+        }}
+      />
 
       {toastMessage ? (
         <div className="fixed right-4 top-5 z-[80] rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">
