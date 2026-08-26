@@ -228,10 +228,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       patientProfileGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
     setSelectedQuestionProfileIds(
-      profileQuestionGroups.filter((group) => group.items.some((item) => String(item) === String(record.id))).map((group) => group.parentId),
+      profileQuestionGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
     setSelectedCategoryIds(
-      categoryQuestionGroups.filter((group) => group.items.some((item) => String(item) === String(record.id))).map((group) => group.parentId),
+      categoryQuestionGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
     setProfileToAdd('');
     setQuestionProfileToAdd('');
@@ -281,18 +281,15 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
       if (managesQuestionRelations) {
         const syncRelations = async (relationEntity: 'PERFIL_PERGUNTA' | 'CATEGORIA_PERGUNTA', groups: BulkGroup[], selectedParentIds: Array<string | number>) => {
-          const selectedParentSet = new Set(selectedParentIds.map(String));
-          const parentIds = new Set([
-            ...groups.map((group) => String(group.parentId)),
-            ...selectedParentIds.map(String),
-          ]);
+          const currentGroup = groups.find((group) => String(group.parentId) === String(savedPatient.id));
+          const currentItems = currentGroup?.items ?? [];
+          const selectedItems = new Set(selectedParentIds.map(String));
+          const nextItems = [
+            ...currentItems.filter((item) => selectedItems.has(String(item))),
+            ...selectedParentIds.filter((item) => !currentItems.some((currentItem) => String(currentItem) === String(item))),
+          ];
 
-          await Promise.all(Array.from(parentIds).map((parentId) => {
-            const currentGroup = groups.find((group) => String(group.parentId) === parentId);
-            const currentItems = (currentGroup?.items ?? []).filter((item) => String(item) !== String(savedPatient.id));
-            const nextItems = selectedParentSet.has(parentId) ? [...currentItems, savedPatient.id] : currentItems;
-            return syncBulkRecords(relationEntity, parentId, nextItems, adminToken);
-          }));
+          await syncBulkRecords(relationEntity, savedPatient.id, nextItems, adminToken);
         };
 
         await Promise.all([
@@ -553,6 +550,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         onSubmit={handleSubmit}
         onDelete={editingRecord ? () => void handleDelete(editingRecord.id) : undefined}
         onSuccessToast={showToast}
+        reloadOnSuccess
         onDataChange={(data) => setQuestionType(Number(data.tipoPergunta) || 1)}
       >
         {managesPatientProfiles ? (
@@ -597,10 +595,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 </li>
               ) : (
                 selectedProfiles.map((profile) => (
-                  <li key={String(profile.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <li key={String(profile.id)} className="rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
-                        <FiCheck className="h-4 w-4" />
+                      <span className="grid h-3 w-3 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
+                        <FiCheck className="h-3 w-3" />
                       </span>
                       <span className="min-w-0 break-words text-sm font-medium text-slate-800">{profile.nomePerfil}</span>
                       <button
@@ -652,11 +650,11 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 </div>
                 <ul className="space-y-3">
                   {relation.selected.length === 0 ? (
-                    <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhum item adicionado.</li>
+                    <li className="rounded-xl border border-dashed border-slate-300 p-2 text-center text-sm text-slate-500">Nenhum item adicionado.</li>
                   ) : relation.selected.map((item) => (
-                    <li key={String(item.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <li key={String(item.id)} className="rounded-xl border border-slate-200 bg-white pl-2 shadow-sm">
                       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-4 w-4" /></span>
+                        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
                         <span className="min-w-0 break-words text-sm font-medium text-slate-800">{item.label}</span>
                         <button type="button" onClick={() => relation.remove(item.id)} aria-label={`Remover ${relation.title.toLowerCase().slice(0, -1)}`} title="Remover" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600"><FiTrash2 className="h-4 w-4" /></button>
                       </div>
@@ -690,7 +688,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               ) : responses.map((response) => (
                 <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                   <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-4 w-4" /></span>
+                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
                     <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>
                     <FiArrowLeft className="h-4 w-4 rotate-180 text-slate-400" aria-hidden="true" />
                   </button>

@@ -15,6 +15,7 @@ interface CrudFormProps {
   onDelete?: () => void;
   onSuccessToast?: (message: string) => void;
   onDataChange?: (data: Record<string, any>) => void;
+  reloadOnSuccess?: boolean;
   presentation?: 'page' | 'modal';
   children?: ReactNode;
 }
@@ -54,6 +55,7 @@ export function CrudForm({
   onDelete,
   onSuccessToast,
   onDataChange,
+  reloadOnSuccess = false,
   presentation = 'page',
   children,
 }: CrudFormProps) {
@@ -92,6 +94,9 @@ export function CrudForm({
         onSuccessToast('Registro salvo com sucesso!');
       }
       onClose();
+      if (reloadOnSuccess) {
+        window.location.reload();
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Erro ao salvar registro.');
     } finally {

@@ -133,8 +133,8 @@ const ENTITY_CONFIG = {
 
 const BULK_CONFIG = {
   PACIENTE_PERFIL: { parentKey: "idPaciente", childKey: "idPerfil", childIsObject: false },
-  CATEGORIA_PERGUNTA: { parentKey: "idCategoria", childKey: "idPergunta", childIsObject: false },
-  PERFIL_PERGUNTA: { parentKey: "idPerfil", childKey: "idPergunta", childIsObject: false },
+  CATEGORIA_PERGUNTA: { parentKey: "idPergunta", childKey: "idCategoria", childIsObject: false },
+  PERFIL_PERGUNTA: { parentKey: "idPergunta", childKey: "idPerfil", childIsObject: false },
   FORMULARIO_PERGUNTA: { parentKey: "idFormulario", childKey: "idPergunta", childIsObject: false },
   RESPOSTA: { parentKey: "idPergunta", childKey: "id", childIsObject: true }
 };
