@@ -513,6 +513,30 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     () => (editingResponse ? { ...createEmptyRecord(ENTITY_FIELDS.RESPOSTA), ...editingResponse } : createEmptyRecord(ENTITY_FIELDS.RESPOSTA)),
     [editingResponse],
   );
+  const responseFields = useMemo(() => {
+    if (!managesQuestionRelations) {
+      return ENTITY_FIELDS.RESPOSTA.filter((field) => field.key !== 'idPergunta');
+    }
+
+    const nextQuestionOptions = [
+      { label: 'Nenhuma pergunta', value: '' },
+      ...records
+        .filter((record) => Number(record.principal) !== 1)
+        .map((record) => ({
+          label: `${record.textoPergunta}`,
+          value: String(record.id),
+        })),
+    ];
+
+    return ENTITY_FIELDS.RESPOSTA
+      .filter((field) => field.key !== 'idPergunta')
+      .map((field) => field.key === 'idProximaPergunta' ? {
+        ...field,
+        type: 'select' as const,
+        required: false,
+        options: nextQuestionOptions,
+      } : field);
+  }, [managesQuestionRelations, records]);
 
   const handleOpenResponseCreate = () => {
     setEditingResponse(null);
@@ -876,7 +900,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         isOpen={isResponseFormOpen}
         presentation="modal"
         title={editingResponse ? 'Editar resposta' : 'Nova resposta'}
-        fields={ENTITY_FIELDS.RESPOSTA.filter((field) => field.key !== 'idPergunta')}
+        fields={responseFields}
         initialData={responseInitialData}
         onClose={() => setIsResponseFormOpen(false)}
         onSubmit={handleResponseSubmit}
