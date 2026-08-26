@@ -8,6 +8,7 @@ export interface FieldConfig {
   hiddenInList?: boolean;
   displayKey?: string;
   disabled?: boolean;
+  inlineGroup?: string;
   options?: { label: string; value: string | number }[];
 }
 
@@ -40,7 +41,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
   PERGUNTA: [
     { key: 'textoPergunta', label: 'Texto da Pergunta', type: 'textarea', required: true },
     { 
-      key: 'tipoPergunta', label: 'Tipo de Pergunta', type: 'select', 
+      key: 'tipoPergunta', label: 'Tipo de Pergunta', type: 'select', inlineGroup: 'pergunta-config',
       options: [
         { label: 'Objetiva', value: 1 },
         { label: 'Múltipla Escolha', value: 2 },
@@ -48,11 +49,11 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
       ] 
     },
     { 
-      key: 'principal', label: 'Principal', type: 'select', 
+      key: 'principal', label: 'Principal', type: 'select', inlineGroup: 'pergunta-config',
       options: [{ label: 'Não', value: 0 }, { label: 'Sim', value: 1 }] 
     },
     { 
-      key: 'obrigatorio', label: 'Obrigatório', type: 'select', 
+      key: 'obrigatorio', label: 'Obrigatório', type: 'select', inlineGroup: 'pergunta-config',
       options: [{ label: 'Não', value: 0 }, { label: 'Sim', value: 1 }] 
     }
   ],

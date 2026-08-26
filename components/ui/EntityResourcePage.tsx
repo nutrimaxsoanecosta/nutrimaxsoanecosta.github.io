@@ -693,6 +693,39 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
             ) : null}
           </>
         ) : null}
+        {managesQuestionRelations && questionType !== 3 ? (
+          <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4 mb-2">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Respostas</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">{responses.length} itens</span>
+                <button
+                  type="button"
+                  onClick={handleOpenResponseCreate}
+                  aria-label="Adicionar resposta"
+                  title="Adicionar resposta"
+                  className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
+                >
+                  <FiPlus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <ul className="space-y-3">
+              {responses.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhuma resposta adicionada.</li>
+              ) : responses.map((response) => (
+                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                  <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
+                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
+                    <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>
+                    <FiArrowLeft className="h-4 w-4 rotate-180 text-slate-400" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         {managesQuestionRelations ? (
           <div className="space-y-4">
             {relationViews.map((relation) => (
@@ -740,38 +773,6 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               </section>
             ))}
           </div>
-        ) : null}
-        {managesQuestionRelations && questionType !== 3 ? (
-          <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Respostas</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{responses.length} itens</span>
-                <button
-                  type="button"
-                  onClick={handleOpenResponseCreate}
-                  aria-label="Adicionar resposta"
-                  title="Adicionar resposta"
-                  className="grid h-9 w-9 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
-                >
-                  <FiPlus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <ul className="space-y-3">
-              {responses.length === 0 ? (
-                <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhuma resposta adicionada.</li>
-              ) : responses.map((response) => (
-                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                  <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
-                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
-                    <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>
-                    <FiArrowLeft className="h-4 w-4 rotate-180 text-slate-400" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
         ) : null}
       </CrudForm>
 

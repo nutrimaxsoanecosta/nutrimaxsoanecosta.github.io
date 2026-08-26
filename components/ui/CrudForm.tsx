@@ -156,11 +156,14 @@ export function CrudForm({
             </div>
           </header>
 
-          <form onSubmit={handleSubmit} className={`space-y-4 px-4 pb-40 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${presentation === 'modal' ? 'sm:pb-6' : ''}`}>
+          <form onSubmit={handleSubmit} className={`flex flex-wrap items-start gap-4 px-4 pb-40 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${presentation === 'modal' ? 'sm:pb-6' : ''}`}>
             {fields.map((field) => {
               const rawValue = formData[field.key] ?? '';
               const value = formatValueForInput(field.type, rawValue);
               const isRequired = field.required !== false;
+              const fieldWrapperClass = field.inlineGroup
+                ? 'w-full min-w-0 sm:w-auto sm:flex-1'
+                : 'w-full';
 
               if (field.type === 'select') {
                 const isSearchablePatient = field.key === 'idPaciente';
@@ -171,7 +174,7 @@ export function CrudForm({
 
                 if (isSearchablePatient) {
                   return (
-                    <div key={field.key} className="space-y-2" ref={selectContainerRef}>
+                    <div key={field.key} className={`${fieldWrapperClass} space-y-2`} ref={selectContainerRef}>
                       <label className="block text-sm font-medium text-slate-700">
                         {field.label}
                         {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
@@ -241,8 +244,8 @@ export function CrudForm({
                   );
                 }
 
-                return (
-                  <div key={field.key} className="space-y-2">
+                  return (
+                    <div key={field.key} className={`${fieldWrapperClass} space-y-2`}>
                     <label className="block text-sm font-medium text-slate-700">
                       {field.label}
                       {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
@@ -266,7 +269,7 @@ export function CrudForm({
 
               if (field.type === 'textarea') {
                 return (
-                  <div key={field.key} className="space-y-2">
+                  <div key={field.key} className={`${fieldWrapperClass} space-y-2`}>
                     <label className="block text-sm font-medium text-slate-700">
                       {field.label}
                       {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
@@ -303,10 +306,10 @@ export function CrudForm({
               );
             })}
 
-            {children}
+            {children ? <div className="w-full">{children}</div> : null}
 
-            <div className={presentation === 'modal' ? 'sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white px-4 pb-4 pt-3 sm:-mx-8 sm:px-8' : 'fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:-mx-8 sm:px-8 sm:pb-0 sm:pt-4 sm:shadow-none'}>
-              <div className="mx-auto flex w-full max-w-2xl justify-end">
+            <div className={`w-full ${presentation === 'modal' ? 'sticky bottom-0 z-20 -mx-4 border-t border-slate-200 bg-white px-4 pb-4 pt-3 sm:-mx-8 sm:px-8' : 'fixed inset-x-0 bottom-0 z-[60] border-t border-slate-200 bg-white px-4 pb-4 pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] sm:static sm:z-auto sm:-mx-8 sm:px-8 sm:pb-0 sm:pt-4 sm:shadow-none'}`}>
+              <div className="flex w-full justify-end">
                 <button
                   type="submit"
                   disabled={isSubmitting}
