@@ -521,7 +521,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     const nextQuestionOptions = [
       { label: 'Nenhuma pergunta', value: '' },
       ...records
-        .filter((record) => Number(record.principal) !== 1)
+        .filter((record) => Number(record.principal) !== 1 && String(record.id) !== String(editingRecord?.id))
         .map((record) => ({
           label: `${record.textoPergunta}`,
           value: String(record.id),
@@ -536,7 +536,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         required: false,
         options: nextQuestionOptions,
       } : field);
-  }, [managesQuestionRelations, records]);
+  }, [editingRecord, managesQuestionRelations, records]);
 
   const handleOpenResponseCreate = () => {
     setEditingResponse(null);
