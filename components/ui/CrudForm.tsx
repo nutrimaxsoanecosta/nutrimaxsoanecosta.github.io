@@ -157,7 +157,7 @@ export function CrudForm({
           </header>
 
           <form onSubmit={handleSubmit} className={`flex flex-wrap items-start gap-4 px-4 pb-40 pt-4 sm:px-8 sm:pb-6 sm:pt-6 ${presentation === 'modal' ? 'sm:pb-6' : ''}`}>
-            {fields.map((field) => {
+            {fields.filter((field) => !field.hiddenInForm).map((field) => {
               const rawValue = formData[field.key] ?? '';
               const value = formatValueForInput(field.type, rawValue);
               const isRequired = field.required !== false;

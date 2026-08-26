@@ -6,6 +6,7 @@ export interface FieldConfig {
   type: 'text' | 'textarea' | 'number' | 'datetime-local' | 'date' | 'select';
   required?: boolean;
   hiddenInList?: boolean;
+  hiddenInForm?: boolean;
   displayKey?: string;
   disabled?: boolean;
   inlineGroup?: string;
@@ -28,7 +29,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
   ],
   CATEGORIA: [
     { key: 'nomeCategoria', label: 'Nome da Categoria', type: 'text', required: true },
-    { key: 'ordemExibicao', label: 'Ordem de Exibição', type: 'number' }
+    { key: 'ordemExibicao', label: 'Ordem de Exibição', type: 'number', hiddenInList: true, hiddenInForm: true }
   ],
   CATEGORIA_PERGUNTA: [
     { key: 'idCategoria', label: 'ID Categoria', type: 'text', required: true },
@@ -70,7 +71,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
   RESPOSTA: [
     { key: 'idPergunta', label: 'ID Pergunta', type: 'text' },
     { key: 'textoResposta', label: 'Texto da Resposta', type: 'text', required: true },
-    { key: 'ordemExibicao', label: 'Ordem de Exibição', type: 'number', required: true },
+    { key: 'ordemExibicao', label: 'Ordem de Exibição', type: 'number', required: true, hiddenInList: true, hiddenInForm: true },
     { key: 'idProximaPergunta', label: 'Próxima Pergunta', type: 'text', required: false },
     { 
       key: 'anuladora', label: 'Anuladora', type: 'select', 
