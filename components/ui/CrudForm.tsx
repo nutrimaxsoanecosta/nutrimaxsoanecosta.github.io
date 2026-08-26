@@ -286,7 +286,7 @@ export function CrudForm({
               }
 
               return (
-                <div key={field.key} className="space-y-2">
+                <div key={field.key} className={`${fieldWrapperClass} space-y-2 md:w-[calc(50%-0.5rem)]`}>
                   <label className="block text-sm font-medium text-slate-700">
                     {field.label}
                     {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
