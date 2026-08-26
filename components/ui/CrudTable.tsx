@@ -129,7 +129,6 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                         {field.label}: {renderCellValue(field, getListValue(field, record))}
                       </span>
                     ))}
-                    <span>Alteração: {formatDisplayDate(record.dataHoraAlteracao)}</span>
                   </div>
                 </div>
 
