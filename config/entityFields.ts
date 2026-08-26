@@ -6,6 +6,8 @@ export interface FieldConfig {
   type: 'text' | 'textarea' | 'number' | 'datetime-local' | 'date' | 'select';
   required?: boolean;
   hiddenInList?: boolean;
+  displayKey?: string;
+  disabled?: boolean;
   options?: { label: string; value: string | number }[];
 }
 
@@ -75,7 +77,7 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
     }
   ],
   FORMULARIO: [
-    { key: 'idPaciente', label: 'ID Paciente', type: 'text' },
+    { key: 'idPaciente', label: 'Paciente', type: 'text', required: true, displayKey: 'nomePaciente' },
     { key: 'nomeFormulario', label: 'Nome do Formulário', type: 'text', required: true },
     { key: 'dataInicio', label: 'Data Início', type: 'datetime-local', required: false },
     { key: 'dataFim', label: 'Data Fim', type: 'datetime-local', required: false },

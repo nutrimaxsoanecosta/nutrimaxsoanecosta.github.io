@@ -1,8 +1,8 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { FieldConfig } from '@/config/entityFields';
-import { FiArrowLeft, FiLoader, FiTrash2 } from 'react-icons/fi';
+import { FiArrowDown, FiArrowLeft, FiLoader, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import { ErrorDialog } from '@/components/ui/ErrorDialog';
 
 interface CrudFormProps {
@@ -62,12 +62,28 @@ export function CrudForm({
   const [formData, setFormData] = useState<Record<string, any>>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [openSelectKey, setOpenSelectKey] = useState<string | null>(null);
+  const [selectSearch, setSelectSearch] = useState('');
+  const selectContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setFormData(initialData);
     setFormError(null);
     setIsSubmitting(false);
+    setOpenSelectKey(null);
+    setSelectSearch('');
   }, [initialData, isOpen]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!selectContainerRef.current?.contains(event.target as Node)) {
+        setOpenSelectKey(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
 
   if (!isOpen) {
     return null;
@@ -84,6 +100,12 @@ export function CrudForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (isSubmitting) return;
+
+    const missingPatient = fields.some((field) => field.key === 'idPaciente' && field.required !== false && !formData[field.key]);
+    if (missingPatient) {
+      setFormError('Selecione um paciente.');
+      return;
+    }
 
     setIsSubmitting(true);
     setFormError(null);
@@ -141,6 +163,84 @@ export function CrudForm({
               const isRequired = field.required !== false;
 
               if (field.type === 'select') {
+                const isSearchablePatient = field.key === 'idPaciente';
+                const filteredOptions = isSearchablePatient
+                  ? field.options?.filter((option) => String(option.label).toLowerCase().includes(selectSearch.trim().toLowerCase())) ?? []
+                  : field.options ?? [];
+                const selectedOption = field.options?.find((option) => String(option.value) === String(value));
+
+                if (isSearchablePatient) {
+                  return (
+                    <div key={field.key} className="space-y-2" ref={selectContainerRef}>
+                      <label className="block text-sm font-medium text-slate-700">
+                        {field.label}
+                        {isRequired ? <span className="ml-1 text-red-500">*</span> : null}
+                      </label>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          disabled={isSubmitting || field.disabled}
+                          onClick={() => {
+                            setOpenSelectKey((current) => current === field.key ? null : field.key);
+                            setSelectSearch('');
+                          }}
+                          className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-brand-cream/40 px-3 py-3 text-left text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100 disabled:text-slate-500"
+                        >
+                          <span className={selectedOption ? 'truncate' : 'text-slate-400'}>
+                            {selectedOption?.label ?? 'Selecionar paciente'}
+                          </span>
+                          <FiArrowDown className="h-4 w-4 shrink-0 text-slate-400" />
+                        </button>
+                        {openSelectKey === field.key && !field.disabled ? (
+                          <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+                            <div className="border-b border-slate-200 p-2">
+                              <div className="relative">
+                                <FiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  autoFocus
+                                  value={selectSearch}
+                                  onChange={(event) => setSelectSearch(event.target.value)}
+                                  placeholder="Pesquisar paciente"
+                                  aria-label="Pesquisar paciente"
+                                  className="w-full rounded-xl border border-slate-200 bg-brand-cream/40 py-2.5 pl-9 pr-9 text-sm text-slate-800 outline-none focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10"
+                                />
+                                {selectSearch ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectSearch('')}
+                                    aria-label="Limpar pesquisa"
+                                    className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                  >
+                                    <FiX className="h-4 w-4" />
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="max-h-56 overflow-y-auto p-1">
+                              {filteredOptions.length === 0 ? (
+                                <p className="px-3 py-4 text-center text-sm text-slate-500">Nenhum paciente encontrado.</p>
+                              ) : filteredOptions.map((option) => (
+                                <button
+                                  key={String(option.value)}
+                                  type="button"
+                                  onClick={() => {
+                                    handleFieldChange(field.key, option.value);
+                                    setOpenSelectKey(null);
+                                    setSelectSearch('');
+                                  }}
+                                  className={`block w-full rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-brand-greenDark/10 ${String(option.value) === String(value) ? 'bg-brand-greenDark/10 font-semibold text-brand-greenDark' : 'text-slate-700'}`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={field.key} className="space-y-2">
                     <label className="block text-sm font-medium text-slate-700">
@@ -150,7 +250,7 @@ export function CrudForm({
                     <select
                       value={value}
                       required={isRequired}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || field.disabled}
                       onChange={(event) => handleFieldChange(field.key, event.target.value)}
                       className="w-full rounded-2xl border border-slate-200 bg-brand-cream/40 px-3 py-3 text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
                     >
@@ -174,7 +274,7 @@ export function CrudForm({
                     <textarea
                       value={value}
                       required={isRequired}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || field.disabled}
                       onChange={(event) => handleFieldChange(field.key, event.target.value)}
                       className="min-h-28 w-full resize-y rounded-2xl border border-slate-200 bg-brand-cream/40 px-3 py-3 text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100 md:min-h-24"
                     />
@@ -192,7 +292,7 @@ export function CrudForm({
                     type={field.type}
                     value={value}
                     required={isRequired}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || field.disabled}
                     onChange={(event) => {
                       const nextValue = field.type === 'number' ? Number(event.target.value) : event.target.value;
                       handleFieldChange(field.key, nextValue);

@@ -45,6 +45,10 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
     return String(value);
   };
 
+  const getListValue = (field: FieldConfig, record: Record<string, any>) => (
+    field.displayKey ? record[field.displayKey] : record[field.key]
+  );
+
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-brand">
       <div className="hidden overflow-x-auto md:block">
@@ -75,7 +79,7 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                     <td className="hidden">{record.id}</td>
                     {visibleFields.map((field) => (
                       <td key={`${String(record.id)}-${field.key}`} className="px-4 py-3 align-top">
-                        {renderCellValue(field, record[field.key])}
+                        {renderCellValue(field, getListValue(field, record))}
                       </td>
                     ))}
                     <td className="px-4 py-3 text-slate-500">
@@ -106,7 +110,7 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
           </div>
         ) : (
           records.map((record) => {
-            const secondaryFields = visibleFields.slice(1, 3);
+            const secondaryFields = visibleFields.slice(1);
 
             return (
               <button
@@ -116,13 +120,13 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                 className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-greenDark/30 hover:bg-brand-greenDark/[0.03]"
               >
                 <div className="min-w-0 space-y-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">
-                    {primaryField ? renderCellValue(primaryField, record[primaryField.key]) : String(record.id)}
+                  <p className="break-words text-sm font-semibold text-slate-900">
+                    {primaryField ? renderCellValue(primaryField, getListValue(primaryField, record)) : String(record.id)}
                   </p>
-                  <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                  <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-1 whitespace-normal text-xs text-slate-500">
                     {secondaryFields.map((field) => (
-                      <span key={`${String(record.id)}-${field.key}`} className="truncate">
-                        {field.label}: {renderCellValue(field, record[field.key])}
+                      <span key={`${String(record.id)}-${field.key}`} className="break-words">
+                        {field.label}: {renderCellValue(field, getListValue(field, record))}
                       </span>
                     ))}
                     <span>Alteração: {formatDisplayDate(record.dataHoraAlteracao)}</span>

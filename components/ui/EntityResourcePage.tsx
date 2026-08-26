@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiCheck, FiPlus, FiRefreshCw, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiCopy, FiPlus, FiRefreshCw, FiSearch, FiTrash2, FiX } from 'react-icons/fi';
 import { ENTITY_FIELDS, FieldConfig } from '@/config/entityFields';
 import { EntityName } from '@/types/form';
 import { CrudForm } from '@/components/ui/CrudForm';
@@ -11,7 +11,7 @@ import { ErrorDialog } from '@/components/ui/ErrorDialog';
 import { Spinner } from '@/components/ui/Spinner';
 import { ADMIN_TOKEN_STORAGE_KEY } from '@/components/ui/AdminAuthGuard';
 import { BulkGroup, createRecord, deleteRecord, fetchBulkRecords, fetchRecords, syncBulkRecords, updateRecord } from '@/services/apiService';
-import { Categoria, Perfil, Resposta } from '@/types/form';
+import { Categoria, Paciente, Perfil, Resposta } from '@/types/form';
 
 interface EntityResourcePageProps {
   entity: EntityName;
@@ -91,6 +91,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [editingRecord, setEditingRecord] = useState<Record<string, any> | null>(null);
   const [profiles, setProfiles] = useState<Perfil[]>([]);
   const [categories, setCategories] = useState<Categoria[]>([]);
+  const [patients, setPatients] = useState<Paciente[]>([]);
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
   const [profileQuestionGroups, setProfileQuestionGroups] = useState<BulkGroup[]>([]);
   const [categoryQuestionGroups, setCategoryQuestionGroups] = useState<BulkGroup[]>([]);
@@ -109,8 +110,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [questionType, setQuestionType] = useState(1);
   const [profileToAdd, setProfileToAdd] = useState('');
   const [search, setSearch] = useState('');
+  const [isPatientUrlCopied, setIsPatientUrlCopied] = useState(false);
   const managesPatientProfiles = entity === 'PACIENTE';
   const managesQuestionRelations = entity === 'PERGUNTA';
+  const managesFormularios = entity === 'FORMULARIO';
   const [adminToken, setAdminToken] = useState('');
 
   useEffect(() => {
@@ -170,16 +173,17 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   }, [entity, adminToken]);
 
   useEffect(() => {
-    if (!managesPatientProfiles && !managesQuestionRelations) return;
+    if (!managesPatientProfiles && !managesQuestionRelations && !managesFormularios) return;
 
     let isMounted = true;
     setIsProfilesLoading(true);
     setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, categoryData, patientGroups, profileGroups, categoryGroups, responseGroups] = await Promise.all([
+        const [profileData, categoryData, patientData, patientGroups, profileGroups, categoryGroups, responseGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
           fetchRecords<Categoria>('CATEGORIA', adminToken),
+          managesFormularios ? fetchRecords<Paciente>('PACIENTE', adminToken) : Promise.resolve([]),
           managesPatientProfiles ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
@@ -188,6 +192,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         if (isMounted) {
           setProfiles(profileData);
           setCategories(categoryData);
+          setPatients(patientData);
           setPatientProfileGroups(patientGroups);
           setProfileQuestionGroups(profileGroups);
           setCategoryQuestionGroups(categoryGroups);
@@ -207,7 +212,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     return () => {
       isMounted = false;
     };
-  }, [adminToken, managesPatientProfiles, managesQuestionRelations]);
+  }, [adminToken, managesFormularios, managesPatientProfiles, managesQuestionRelations]);
 
   const handleOpenCreate = () => {
     setEditingRecord(null);
@@ -246,6 +251,19 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const handleCloseForm = () => {
     setEditingRecord(null);
     setIsFormOpen(false);
+    setIsPatientUrlCopied(false);
+  };
+
+  const patientQuestionnaireUrl = editingRecord && managesPatientProfiles
+    ? `${window.location.origin}/questionario?pacienteId=${encodeURIComponent(String(editingRecord.id))}`
+    : '';
+
+  const handleCopyPatientQuestionnaireUrl = async () => {
+    if (!patientQuestionnaireUrl) return;
+
+    await navigator.clipboard.writeText(patientQuestionnaireUrl);
+    setIsPatientUrlCopied(true);
+    window.setTimeout(() => setIsPatientUrlCopied(false), 2000);
   };
 
   const handleSubmit = async (data: Record<string, any>) => {
@@ -331,6 +349,22 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     () => (editingRecord ? { ...createEmptyRecord(fields), ...editingRecord } : createEmptyRecord(fields)),
     [editingRecord, fields],
   );
+  const formFields = useMemo(() => {
+    if (!managesFormularios) {
+      return fields;
+    }
+
+    return fields.map((field) => field.key === 'idPaciente' ? {
+      ...field,
+      type: 'select' as const,
+      required: true,
+      disabled: Boolean(editingRecord),
+      options: patients.map((patient) => ({
+        label: patient.nomePaciente,
+        value: String(patient.id),
+      })),
+    } : field);
+  }, [editingRecord, fields, managesFormularios, patients]);
   const isBusy = isLoading || isProfilesLoading || isSaving || deletingId !== null;
   const filteredRecords = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -343,6 +377,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term)),
     );
   }, [fields, records, search]);
+  const recordsForList = useMemo(() => {
+    if (!managesFormularios) {
+      return filteredRecords;
+    }
+
+    return filteredRecords.map((record) => ({
+      ...record,
+      nomePaciente: patients.find((patient) => String(patient.id) === String(record.idPaciente))?.nomePaciente ?? 'Paciente não encontrado',
+    }));
+  }, [filteredRecords, managesFormularios, patients]);
   const selectedProfiles = profiles.filter((profile) =>
     selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
   );
@@ -522,7 +566,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         ) : (
           <CrudTable
             fields={fields}
-            records={filteredRecords}
+            records={recordsForList}
             onEdit={handleOpenEdit}
           />
         )}
@@ -544,7 +588,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       <CrudForm
         isOpen={isFormOpen}
         title={editingRecord ? `Editar ${title}` : `Novo ${title}`}
-        fields={fields}
+        fields={formFields}
         initialData={formInitialData}
         onClose={handleCloseForm}
         onSubmit={handleSubmit}
@@ -554,7 +598,8 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         onDataChange={(data) => setQuestionType(Number(data.tipoPergunta) || 1)}
       >
         {managesPatientProfiles ? (
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+          <>
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Perfis</h3>
               <span className="shrink-0 text-xs text-slate-500">{selectedProfiles.length} itens</span>
@@ -595,9 +640,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 </li>
               ) : (
                 selectedProfiles.map((profile) => (
-                  <li key={String(profile.id)} className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <li key={String(profile.id)} className="rounded-xl border border-slate-200 pl-2 bg-white shadow-sm">
                     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                      <span className="grid h-3 w-3 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
+                      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
                         <FiCheck className="h-3 w-3" />
                       </span>
                       <span className="min-w-0 break-words text-sm font-medium text-slate-800">{profile.nomePerfil}</span>
@@ -615,7 +660,33 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
                 ))
               )}
             </ul>
-          </div>
+            </div>
+
+            {editingRecord ? (
+              <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">URL do questionário</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={patientQuestionnaireUrl}
+                    readOnly
+                    aria-label="URL do questionário do paciente"
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyPatientQuestionnaireUrl()}
+                    aria-label="Copiar URL do questionário"
+                    title="Copiar URL"
+                    className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
+                  >
+                    <FiCopy className="h-5 w-5" />
+                  </button>
+                </div>
+                {isPatientUrlCopied ? <p className="text-xs font-medium text-emerald-600">URL copiada.</p> : null}
+              </section>
+            ) : null}
+          </>
         ) : null}
         {managesQuestionRelations ? (
           <div className="space-y-4">
@@ -686,7 +757,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               {responses.length === 0 ? (
                 <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhuma resposta adicionada.</li>
               ) : responses.map((response) => (
-                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
                   <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
                     <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
                     <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>
