@@ -280,6 +280,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   };
 
   const handleSubmit = async (data: Record<string, any>) => {
+    if (managesFormularios && selectedFormCategoryIds.length === 0) {
+      throw new Error('Adicione pelo menos uma categoria ao formulário.');
+    }
+
     setIsSaving(true);
 
     try {
@@ -759,7 +763,9 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
         {managesFormularios ? (
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Categorias do formulário</h3>
+              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">
+                Categorias do formulário<span className="ml-1 text-red-500" aria-hidden="true">*</span>
+              </h3>
               <span className="shrink-0 text-xs text-slate-500">{selectedFormCategories.length} itens</span>
             </div>
             <div className="flex gap-2">
