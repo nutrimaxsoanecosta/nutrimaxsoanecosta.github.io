@@ -834,7 +834,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               {responses.length === 0 ? (
                 <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">Nenhuma resposta adicionada.</li>
               ) : responses.map((response) => (
-                <li key={String(response.id)} className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <li
+                  key={String(response.id)}
+                  className={`rounded-xl border p-2 shadow-sm ${String(response.idProximaPergunta ?? '').trim() ? 'border-brand-gold/35 bg-brand-gold/10' : 'border-slate-200 bg-white'}`}
+                >
                   <button type="button" onClick={() => handleOpenResponseEdit(response)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-left">
                     <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white"><FiCheck className="h-3 w-3" /></span>
                     <span className="min-w-0 break-words text-sm font-medium text-slate-800">{response.textoResposta}</span>

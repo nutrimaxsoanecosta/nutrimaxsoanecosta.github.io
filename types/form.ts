@@ -48,6 +48,7 @@ export interface TipoPergunta extends BaseEntity {
 export interface Resposta extends BaseEntity {
   idPergunta: string | number;
   textoResposta: string;
+  idProximaPergunta?: string | number | null;
   anuladora?: number; // 0 ou 1
   ordemExibicao: number;
   pergunta?: Pergunta | null;
