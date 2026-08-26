@@ -454,7 +454,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
   const relationViews: RelationView[] = [
     {
-      title: 'Perfis',
+      title: 'Exclusivo para Perfis',
       selected: selectedQuestionProfiles.map((item) => ({ id: item.id, label: item.nomePerfil })),
       available: availableQuestionProfiles.map((item) => ({ id: item.id, label: item.nomePerfil })),
       value: questionProfileToAdd,

@@ -123,9 +123,9 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                   <p className="break-words text-sm font-semibold text-slate-900">
                     {primaryField ? renderCellValue(primaryField, getListValue(primaryField, record)) : String(record.id)}
                   </p>
-                  <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-1 whitespace-normal text-xs text-slate-500">
+                  <div className="flex flex-col gap-1 text-xs text-slate-500 min-w-0">
                     {secondaryFields.map((field) => (
-                      <span key={`${String(record.id)}-${field.key}`} className="break-words">
+                      <span key={`${String(record.id)}-${field.key}`} className="break-all">
                         {field.label}: {renderCellValue(field, getListValue(field, record))}
                       </span>
                     ))}
