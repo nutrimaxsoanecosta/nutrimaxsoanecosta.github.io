@@ -731,7 +731,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
             </div>
 
             {editingRecord ? (
-              <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+              <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4 mt-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">URL do questionário</h3>
                 <div className="flex items-center gap-2">
                   <input
