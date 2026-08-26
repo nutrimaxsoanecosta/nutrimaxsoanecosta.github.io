@@ -7,6 +7,7 @@ interface CrudTableProps {
   fields: FieldConfig[];
   records: Record<string, any>[];
   onEdit: (record: Record<string, any>) => void;
+  showActiveBadge?: boolean;
 }
 
 const formatDisplayDate = (value: any) => {
@@ -25,7 +26,7 @@ const formatDisplayDate = (value: any) => {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
 
-export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
+export function CrudTable({ fields, records, onEdit, showActiveBadge = false }: CrudTableProps) {
   const visibleFields = fields.filter((field) => !field.hiddenInList);
   const primaryField = visibleFields[0];
 
@@ -49,6 +50,26 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
     field.displayKey ? record[field.displayKey] : record[field.key]
   );
 
+  const isActive = (record: Record<string, any>) => {
+    const startDate = new Date(record.dataInicio);
+    const endDate = new Date(record.dataFim);
+    const now = new Date();
+
+    return Boolean(record.dataInicio && record.dataFim)
+      && !isNaN(startDate.getTime())
+      && !isNaN(endDate.getTime())
+      && startDate <= now
+      && now <= endDate;
+  };
+
+  const renderActiveBadge = (record: Record<string, any>) => (
+    isActive(record) ? (
+      <span className="inline-flex rounded-full bg-brand-greenDark/10 px-2.5 py-1 text-xs font-semibold lowercase text-brand-greenDark">
+        ativo
+      </span>
+    ) : null
+  );
+
   return (
     <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-brand">
       <div className="hidden overflow-x-auto md:block">
@@ -61,14 +82,14 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                   {field.label}
                 </th>
               ))}
-              <th className="px-4 py-3 font-semibold">Alteração</th>
+              {showActiveBadge ? <th className="px-4 py-3 font-semibold">Status</th> : null}
               <th className="px-4 py-3 text-right font-semibold">Ações</th>
             </tr>
           </thead>
           <tbody>
             {records.length === 0 ? (
               <tr>
-                <td colSpan={visibleFields.length + 3} className="px-4 py-12 text-center text-slate-500">
+                <td colSpan={visibleFields.length + (showActiveBadge ? 2 : 1) + 1} className="px-4 py-12 text-center text-slate-500">
                   Nenhum registro encontrado.
                 </td>
               </tr>
@@ -82,9 +103,7 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                         {renderCellValue(field, getListValue(field, record))}
                       </td>
                     ))}
-                    <td className="px-4 py-3 text-slate-500">
-                      {formatDisplayDate(record.dataHoraAlteracao)}
-                    </td>
+                    {showActiveBadge ? <td className="px-4 py-3">{renderActiveBadge(record)}</td> : null}
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -120,9 +139,12 @@ export function CrudTable({ fields, records, onEdit }: CrudTableProps) {
                 className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-greenDark/30 hover:bg-brand-greenDark/[0.03]"
               >
                 <div className="min-w-0 space-y-1">
-                  <p className="break-words text-sm font-semibold text-slate-900">
-                    {primaryField ? renderCellValue(primaryField, getListValue(primaryField, record)) : String(record.id)}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="break-words text-sm font-semibold text-slate-900">
+                      {primaryField ? renderCellValue(primaryField, getListValue(primaryField, record)) : String(record.id)}
+                    </p>
+                    {showActiveBadge ? renderActiveBadge(record) : null}
+                  </div>
                   <div className="flex flex-col gap-1 text-xs text-slate-500 min-w-0">
                     {secondaryFields.map((field) => (
                       <span key={`${String(record.id)}-${field.key}`} className="break-all">

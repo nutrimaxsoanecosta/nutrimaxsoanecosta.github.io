@@ -635,6 +635,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
             fields={fields}
             records={recordsForList}
             onEdit={handleOpenEdit}
+            showActiveBadge={entity === 'FORMULARIO' || entity === 'PACIENTE'}
           />
         )}
       </div>
