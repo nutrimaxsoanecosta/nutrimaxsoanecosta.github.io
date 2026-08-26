@@ -510,10 +510,29 @@ function doGet(e) {
     }
 
     const formularioCategorias = sheetToObjects("FORMULARIO_CATEGORIA", FormularioCategoria, (r, C) => new C(r[0], r[1], r[2], r[3]));
+    const pacientePerfis = sheetToObjects("PACIENTE_PERFIL", PacientePerfil, (r, C) => new C(r[0], r[1], r[2], r[3]));
+    const perfilPerguntas = sheetToObjects("PERFIL_PERGUNTA", PerfilPergunta, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const categoriaPerguntas = sheetToObjects("CATEGORIA_PERGUNTA", CategoriaPergunta, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const categorias = sheetToObjects("CATEGORIA", Categoria, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const todasPerguntas = sheetToObjects("PERGUNTA", Pergunta, (r, C) => new C(r[0], r[1], r[2], r[3], r[4], r[5]));
     const todasRespostas = sheetToObjects("RESPOSTA", Resposta, (r, C) => new C(r[0], r[1], r[2], r[3], r[4], r[5], r[6]));
+    const perfisDoPaciente = new Set(
+      pacientePerfis
+        .filter(pp => String(pp.idPaciente) === String(paciente.id))
+        .map(pp => String(pp.idPerfil))
+    );
+
+    const perguntaPrincipalPodeSerExibida = (pergunta) => {
+      if (Number(pergunta.principal) !== 1) {
+        return true;
+      }
+
+      const perfisDaPergunta = perfilPerguntas
+        .filter(pq => String(pq.idPergunta) === String(pergunta.id))
+        .map(pq => String(pq.idPerfil));
+
+      return perfisDaPergunta.length === 0 || perfisDaPergunta.some(idPerfil => perfisDoPaciente.has(idPerfil));
+    };
 
     const formulariosHierarquicos = formulariosAtivos.map(form => {
       const idsCategoriasDoForm = formularioCategorias
@@ -533,7 +552,7 @@ function doGet(e) {
 
         if (idsPerguntasDaCat.length > 0) {
           const perguntasMapeadas = todasPerguntas
-            .filter(p => idsPerguntasDaCat.includes(String(p.id)))
+            .filter(p => idsPerguntasDaCat.includes(String(p.id)) && perguntaPrincipalPodeSerExibida(p))
             .map(p => montarPerguntaComRespostas(p, todasPerguntas, todasRespostas));
 
           categoriasDoForm.push({
