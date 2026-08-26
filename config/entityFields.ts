@@ -83,8 +83,8 @@ export const ENTITY_FIELDS: Record<EntityName, FieldConfig[]> = {
     { key: 'dataInicio', label: 'Data Início', type: 'datetime-local', required: false },
     { key: 'dataFim', label: 'Data Fim', type: 'datetime-local', required: false },
   ],
-  FORMULARIO_PERGUNTA: [
+  FORMULARIO_CATEGORIA: [
     { key: 'idFormulario', label: 'ID Formulário', type: 'text' },
-    { key: 'idPergunta', label: 'ID Pergunta', type: 'text' }
+    { key: 'idCategoria', label: 'ID Categoria', type: 'text' }
   ]
 };

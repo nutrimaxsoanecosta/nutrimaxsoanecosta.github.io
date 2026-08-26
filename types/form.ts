@@ -81,6 +81,10 @@ export interface PayloadAppsScript {
   formularios?: FormularioHierarquico[];
 }
 
+export interface FormularioCategoria extends BaseEntity {
+  idFormulario: string | number;
+  idCategoria: string | number;
+}
 
 export type EntityName =
   | 'PERFIL'
@@ -93,4 +97,4 @@ export type EntityName =
   | 'TIPO_PERGUNTA'
   | 'RESPOSTA'
   | 'FORMULARIO'
-  | 'FORMULARIO_PERGUNTA';
+  | 'FORMULARIO_CATEGORIA';

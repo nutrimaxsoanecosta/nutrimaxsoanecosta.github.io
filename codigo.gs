@@ -106,11 +106,11 @@ class Formulario extends BaseEntity {
   }
 }
 
-class FormularioPergunta extends BaseEntity {
-  constructor(id, idFormulario, idPergunta, dataHoraAlteracao) {
+class FormularioCategoria extends BaseEntity {
+  constructor(id, idFormulario, idCategoria, dataHoraAlteracao) {
     super(id, dataHoraAlteracao);
     this.idFormulario = idFormulario;
-    this.idPergunta = idPergunta;
+    this.idCategoria = idCategoria;
   }
 }
 
@@ -128,14 +128,14 @@ const ENTITY_CONFIG = {
   TIPO_PERGUNTA: { sheetName: "TIPO_PERGUNTA", classRef: TipoPergunta, columns: ["id", "tipo", "dataHoraAlteracao"] },
   RESPOSTA: { sheetName: "RESPOSTA", classRef: Resposta, columns: ["id", "idPergunta", "textoResposta", "anuladora", "ordemExibicao", "idProximaPergunta", "dataHoraAlteracao"] },
   FORMULARIO: { sheetName: "FORMULARIO", classRef: Formulario, columns: ["id", "idPaciente", "nomeFormulario", "dataInicio", "dataFim", "dataHoraAlteracao"] },
-  FORMULARIO_PERGUNTA: { sheetName: "FORMULARIO_PERGUNTA", classRef: FormularioPergunta, columns: ["id", "idFormulario", "idPergunta", "dataHoraAlteracao"] }
+  FORMULARIO_CATEGORIA: { sheetName: "FORMULARIO_CATEGORIA", classRef: FormularioCategoria, columns: ["id", "idFormulario", "idCategoria", "dataHoraAlteracao"] }
 };
 
 const BULK_CONFIG = {
   PACIENTE_PERFIL: { parentKey: "idPaciente", childKey: "idPerfil", childIsObject: false },
   CATEGORIA_PERGUNTA: { parentKey: "idPergunta", childKey: "idCategoria", childIsObject: false },
   PERFIL_PERGUNTA: { parentKey: "idPergunta", childKey: "idPerfil", childIsObject: false },
-  FORMULARIO_PERGUNTA: { parentKey: "idFormulario", childKey: "idPergunta", childIsObject: false },
+  FORMULARIO_CATEGORIA: { parentKey: "idFormulario", childKey: "idCategoria", childIsObject: false },
   RESPOSTA: { parentKey: "idPergunta", childKey: "id", childIsObject: true }
 };
 
@@ -509,22 +509,26 @@ function doGet(e) {
       });
     }
 
-    const formularioPerguntas = sheetToObjects("FORMULARIO_PERGUNTA", FormularioPergunta, (r, C) => new C(r[0], r[1], r[2], r[3]));
+    const formularioCategorias = sheetToObjects("FORMULARIO_CATEGORIA", FormularioCategoria, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const categoriaPerguntas = sheetToObjects("CATEGORIA_PERGUNTA", CategoriaPergunta, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const categorias = sheetToObjects("CATEGORIA", Categoria, (r, C) => new C(r[0], r[1], r[2], r[3]));
     const todasPerguntas = sheetToObjects("PERGUNTA", Pergunta, (r, C) => new C(r[0], r[1], r[2], r[3], r[4], r[5]));
     const todasRespostas = sheetToObjects("RESPOSTA", Resposta, (r, C) => new C(r[0], r[1], r[2], r[3], r[4], r[5], r[6]));
 
     const formulariosHierarquicos = formulariosAtivos.map(form => {
-      const idsPerguntasDoForm = formularioPerguntas
-        .filter(fp => String(fp.idFormulario) === String(form.id))
-        .map(fp => String(fp.idPergunta));
+      const idsCategoriasDoForm = formularioCategorias
+        .filter(fc => String(fc.idFormulario) === String(form.id))
+        .map(fc => String(fc.idCategoria));
 
       const categoriasDoForm = [];
 
       categorias.sort((a, b) => a.ordemExibicao - b.ordemExibicao).forEach(cat => {
+        if (!idsCategoriasDoForm.includes(String(cat.id))) {
+          return;
+        }
+
         const idsPerguntasDaCat = categoriaPerguntas
-          .filter(cp => String(cp.idCategoria) === String(cat.id) && idsPerguntasDoForm.includes(String(cp.idPergunta)))
+          .filter(cp => String(cp.idCategoria) === String(cat.id))
           .map(cp => String(cp.idPergunta));
 
         if (idsPerguntasDaCat.length > 0) {
