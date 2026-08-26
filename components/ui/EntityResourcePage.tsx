@@ -373,10 +373,15 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
       return records;
     }
 
-    return records.filter((record) =>
-      fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term)),
-    );
-  }, [fields, records, search]);
+    return records.filter((record) => {
+      const matchesField = fields.some((field) => String(record[field.key] ?? '').toLowerCase().includes(term));
+      const patientName = managesFormularios
+        ? patients.find((patient) => String(patient.id) === String(record.idPaciente))?.nomePaciente ?? ''
+        : '';
+
+      return matchesField || patientName.toLowerCase().includes(term);
+    });
+  }, [fields, managesFormularios, patients, records, search]);
   const recordsForList = useMemo(() => {
     if (!managesFormularios) {
       return filteredRecords;
