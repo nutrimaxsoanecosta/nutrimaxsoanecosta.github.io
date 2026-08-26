@@ -267,8 +267,8 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setIsPatientUrlCopied(false);
   };
 
-  const patientQuestionnaireUrl = editingRecord && managesPatientProfiles
-    ? `${window.location.origin}/questionario?pacienteId=${encodeURIComponent(String(editingRecord.id))}`
+  const patientQuestionnaireUrl = editingRecord && (managesPatientProfiles || managesFormularios)
+    ? `${window.location.origin}/questionario?pacienteId=${encodeURIComponent(String(managesPatientProfiles ? editingRecord.id : editingRecord.idPaciente))}`
     : '';
 
   const handleCopyPatientQuestionnaireUrl = async () => {
@@ -730,31 +730,31 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
             </ul>
             </div>
 
-            {editingRecord ? (
-              <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4 mt-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">URL do questionário</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={patientQuestionnaireUrl}
-                    readOnly
-                    aria-label="URL do questionário do paciente"
-                    className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleCopyPatientQuestionnaireUrl()}
-                    aria-label="Copiar URL do questionário"
-                    title="Copiar URL"
-                    className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
-                  >
-                    <FiCopy className="h-5 w-5" />
-                  </button>
-                </div>
-                {isPatientUrlCopied ? <p className="text-xs font-medium text-emerald-600">URL copiada.</p> : null}
-              </section>
-            ) : null}
           </>
+        ) : null}
+        {editingRecord && (managesPatientProfiles || managesFormularios) ? (
+          <section className="my-4 space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">URL do questionário</h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={patientQuestionnaireUrl}
+                readOnly
+                aria-label="URL do questionário do paciente"
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCopyPatientQuestionnaireUrl()}
+                aria-label="Copiar URL do questionário"
+                title="Copiar URL"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90"
+              >
+                <FiCopy className="h-5 w-5" />
+              </button>
+            </div>
+            {isPatientUrlCopied ? <p className="text-xs font-medium text-emerald-600">URL copiada.</p> : null}
+          </section>
         ) : null}
         {managesFormularios ? (
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
