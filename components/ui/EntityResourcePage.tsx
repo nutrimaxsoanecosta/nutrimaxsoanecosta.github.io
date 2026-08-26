@@ -95,6 +95,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [patientProfileGroups, setPatientProfileGroups] = useState<BulkGroup[]>([]);
   const [profileQuestionGroups, setProfileQuestionGroups] = useState<BulkGroup[]>([]);
   const [categoryQuestionGroups, setCategoryQuestionGroups] = useState<BulkGroup[]>([]);
+  const [formCategoryGroups, setFormCategoryGroups] = useState<BulkGroup[]>([]);
   const [questionResponseGroups, setQuestionResponseGroups] = useState<BulkGroup<Resposta>[]>([]);
   const [isProfilesLoading, setIsProfilesLoading] = useState(false);
   const [isProfilesReady, setIsProfilesReady] = useState(false);
@@ -102,8 +103,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const [selectedProfileIds, setSelectedProfileIds] = useState<Array<string | number>>([]);
   const [selectedQuestionProfileIds, setSelectedQuestionProfileIds] = useState<Array<string | number>>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Array<string | number>>([]);
+  const [selectedFormCategoryIds, setSelectedFormCategoryIds] = useState<Array<string | number>>([]);
   const [questionProfileToAdd, setQuestionProfileToAdd] = useState('');
   const [categoryToAdd, setCategoryToAdd] = useState('');
+  const [formCategoryToAdd, setFormCategoryToAdd] = useState('');
   const [responses, setResponses] = useState<Resposta[]>([]);
   const [isResponseFormOpen, setIsResponseFormOpen] = useState(false);
   const [editingResponse, setEditingResponse] = useState<Resposta | null>(null);
@@ -180,13 +183,14 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setIsProfilesReady(false);
     const loadProfiles = async () => {
       try {
-        const [profileData, categoryData, patientData, patientGroups, profileGroups, categoryGroups, responseGroups] = await Promise.all([
+        const [profileData, categoryData, patientData, patientGroups, profileGroups, categoryGroups, formCategories, responseGroups] = await Promise.all([
           fetchRecords<Perfil>('PERFIL', adminToken),
           fetchRecords<Categoria>('CATEGORIA', adminToken),
           managesFormularios ? fetchRecords<Paciente>('PACIENTE', adminToken) : Promise.resolve([]),
           managesPatientProfiles ? fetchBulkRecords('PACIENTE_PERFIL', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('PERFIL_PERGUNTA', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords('CATEGORIA_PERGUNTA', adminToken) : Promise.resolve([]),
+          managesFormularios ? fetchBulkRecords('FORMULARIO_CATEGORIA', adminToken) : Promise.resolve([]),
           managesQuestionRelations ? fetchBulkRecords<Resposta>('RESPOSTA', adminToken) : Promise.resolve([]),
         ]);
         if (isMounted) {
@@ -196,6 +200,7 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
           setPatientProfileGroups(patientGroups);
           setProfileQuestionGroups(profileGroups);
           setCategoryQuestionGroups(categoryGroups);
+          setFormCategoryGroups(formCategories);
           setQuestionResponseGroups(responseGroups);
           setIsProfilesReady(true);
         }
@@ -220,8 +225,10 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setProfileToAdd('');
     setSelectedQuestionProfileIds([]);
     setSelectedCategoryIds([]);
+    setSelectedFormCategoryIds([]);
     setQuestionProfileToAdd('');
     setCategoryToAdd('');
+    setFormCategoryToAdd('');
     setResponses([]);
     setQuestionType(1);
     setIsFormOpen(true);
@@ -238,9 +245,13 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
     setSelectedCategoryIds(
       categoryQuestionGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
+    setSelectedFormCategoryIds(
+      formCategoryGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
+    );
     setProfileToAdd('');
     setQuestionProfileToAdd('');
     setCategoryToAdd('');
+    setFormCategoryToAdd('');
     setResponses(
       questionResponseGroups.find((group) => String(group.parentId) === String(record.id))?.items ?? [],
     );
@@ -317,6 +328,15 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
         const questionId = savedPatient.id;
         await syncBulkRecords<Resposta>('RESPOSTA', questionId, questionType === 3 ? [] : responses, adminToken);
+      }
+
+      if (managesFormularios) {
+        const formId = savedPatient.id;
+        const syncedGroup = await syncBulkRecords('FORMULARIO_CATEGORIA', formId, selectedFormCategoryIds, adminToken);
+        setFormCategoryGroups((current) => [
+          ...current.filter((group) => String(group.parentId) !== String(formId)),
+          syncedGroup,
+        ]);
       }
     } finally {
       setIsSaving(false);
@@ -401,11 +421,17 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
   const availableCategories = categories.filter((category) =>
     !selectedCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
   );
+  const availableFormCategories = categories.filter((category) =>
+    !selectedFormCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
+  );
   const selectedQuestionProfiles = profiles.filter((profile) =>
     selectedQuestionProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
   );
   const selectedCategories = categories.filter((category) =>
     selectedCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
+  );
+  const selectedFormCategories = categories.filter((category) =>
+    selectedFormCategoryIds.some((selectedId) => String(selectedId) === String(category.id)),
   );
   const availableProfiles = profiles.filter((profile) =>
     !selectedProfileIds.some((selectedId) => String(selectedId) === String(profile.id)),
@@ -439,6 +465,16 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
 
   const removeCategory = (categoryId: string | number) => {
     setSelectedCategoryIds((current) => current.filter((id) => String(id) !== String(categoryId)));
+  };
+
+  const addFormCategory = (categoryId: string) => {
+    if (!categoryId) return;
+    setSelectedFormCategoryIds((current) => [...current, categoryId]);
+    setFormCategoryToAdd('');
+  };
+
+  const removeFormCategory = (categoryId: string | number) => {
+    setSelectedFormCategoryIds((current) => current.filter((id) => String(id) !== String(categoryId)));
   };
 
   type RelationItem = { id: string | number; label: string };
@@ -692,6 +728,66 @@ export function EntityResourcePage({ entity, title, description }: EntityResourc
               </section>
             ) : null}
           </>
+        ) : null}
+        {managesFormularios ? (
+          <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <h3 className="truncate text-sm font-semibold uppercase tracking-wide text-slate-700">Categorias do formulário</h3>
+              <span className="shrink-0 text-xs text-slate-500">{selectedFormCategories.length} itens</span>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={formCategoryToAdd}
+                onChange={(event) => setFormCategoryToAdd(event.target.value)}
+                disabled={isProfilesLoading || !isProfilesReady || availableFormCategories.length === 0}
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-greenDark focus:ring-4 focus:ring-brand-greenDark/10 disabled:bg-slate-100"
+              >
+                <option value="">Selecionar categoria</option>
+                {availableFormCategories.map((category) => (
+                  <option key={String(category.id)} value={String(category.id)}>
+                    {category.nomeCategoria}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => addFormCategory(formCategoryToAdd)}
+                disabled={!formCategoryToAdd || isProfilesLoading}
+                aria-label="Adicionar categoria ao formulário"
+                title="Adicionar categoria"
+                className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-greenDark text-white transition hover:bg-brand-greenDark/90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                <FiPlus className="h-5 w-5" />
+              </button>
+            </div>
+            <ul className="space-y-3">
+              {isProfilesLoading || !isProfilesReady ? (
+                <li className="py-6 text-center text-sm text-slate-500">Carregando categorias...</li>
+              ) : selectedFormCategories.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">
+                  Nenhuma categoria adicionada.
+                </li>
+              ) : selectedFormCategories.map((category) => (
+                <li key={String(category.id)} className="rounded-xl border border-slate-200 bg-white pl-2 shadow-sm">
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-brand-greenDark bg-brand-greenDark text-white">
+                      <FiCheck className="h-3 w-3" />
+                    </span>
+                    <span className="min-w-0 break-words text-sm font-medium text-slate-800">{category.nomeCategoria}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFormCategory(category.id)}
+                      aria-label={`Remover categoria ${category.nomeCategoria}`}
+                      title="Remover categoria"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                    >
+                      <FiTrash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         {managesQuestionRelations && questionType !== 3 ? (
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-brand-cream/40 p-4 mb-2">

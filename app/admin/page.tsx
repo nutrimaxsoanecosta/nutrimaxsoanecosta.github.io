@@ -19,8 +19,7 @@ const resources = [
   { label: 'Paciente', path: '/admin/paciente', description: 'Cadastre e acompanhe os pacientes.', icon: FiUsers },
   { label: 'Categoria', path: '/admin/categoria', description: 'Organize as categorias das perguntas.', icon: FiLayers },
   { label: 'Pergunta', path: '/admin/pergunta', description: 'Crie e edite perguntas.', icon: FiClipboard },
-  { label: 'Formulário', path: '/admin/formulario', description: 'Gerencie os formulários.', icon: FiBriefcase },
-  { label: 'Formulário/Categoria', path: '/admin/formulario-categoria', description: 'Associe categorias aos formulários.', icon: FiClipboard },
+  { label: 'Formulário', path: '/admin/formulario', description: 'Gerencie os formulários.', icon: FiBriefcase }
 ];
 
 export default function AdminDashboardPage() {
