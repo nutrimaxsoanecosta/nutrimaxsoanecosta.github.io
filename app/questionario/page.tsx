@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FaWhatsapp, FaPlay } from 'react-icons/fa';
 import { OptionCard } from '@/components/ui/OptionCard';
@@ -13,6 +13,8 @@ import { LoadingUi } from '../../components/ui/LoadingUi';
 function QuizApp() {
   const searchParams = useSearchParams();
   const pacienteId = searchParams.get('pacienteId');
+
+  const mainContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -230,6 +232,11 @@ function QuizApp() {
     setIsAnimating(true);
     setTimeout(() => {
       action();
+      if (mainContainerRef.current) {
+        mainContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       setIsAnimating(false);
     }, 350);
   };
@@ -547,7 +554,7 @@ function QuizApp() {
           </section>
         )}
 
-        <main className="flex-1 min-h-0 overflow-y-auto py-4">
+        <main ref={mainContainerRef} className="flex-1 min-h-0 overflow-y-auto py-4">
           {/* TELA INICIAL: LISTA DE FORMULÁRIOS PENDENTES */}
           {!selectedFormId ? (
             <div className="bg-[#ffffff] border border-[#e2e5e2] rounded-2xl p-6 md:p-8 shadow-[0_12px_35px_rgba(27,83,43,0.06)]">
@@ -737,7 +744,7 @@ function QuizApp() {
                   disabled={isAnimating}
                   className="order-2 md:order-1 w-full md:w-1/2 bg-[#e2e5e2] hover:bg-[#d5d9d5] text-[#2d312e] font-semibold py-3.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2"
                 >
-                 Voltar
+                   Voltar
                 </button>
               </div>
             </div>
