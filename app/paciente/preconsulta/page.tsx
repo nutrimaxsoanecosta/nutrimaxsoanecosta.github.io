@@ -779,7 +779,9 @@ function PreConsultaApp() {
         if (isMounted) {
           if (resultSimple.paciente) setPaciente(resultSimple.paciente);
           if (resultSimple.formularios) setFormulariosAtivos(resultSimple.formularios);
-          setLoading(false);
+          setTimeout(() => {
+            setLoading(false);
+          }, 3000);
         }
 
         const resultQuestions: PayloadAppsScript = responseJson;
@@ -789,7 +791,9 @@ function PreConsultaApp() {
       } catch (err: any) {
         if (isMounted) {
           setErrorMessage(err.message || 'Falha ao carregar formulários.');
-          setLoading(false);
+          setTimeout(() => {
+            setLoading(false);
+          }, 3000);
         }
       }
     }
