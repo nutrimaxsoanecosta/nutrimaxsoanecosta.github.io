@@ -306,15 +306,6 @@ function PreConsultaApp() {
           "ordemExibicao": 4,
           "perguntas": [
             {
-              "id": 401,
-              "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-              "principal": 1,
-              "textoPergunta": "Peso atual em kg (quilograma) - Se não souber, deixe em branco.",
-              "tipoPergunta": 3,
-              "obrigatorio": 0,
-              "respostas": []
-            },
-            {
               "id": 402,
               "dataHoraAlteracao": "2026-10-08T10:00:00Z",
               "principal": 1,
@@ -322,33 +313,6 @@ function PreConsultaApp() {
               "tipoPergunta": 3,
               "obrigatorio": 0,
               "respostas": []
-            },
-            {
-              "id": 403,
-              "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-              "principal": 1,
-              "textoPergunta": "Sabe sua medida de cintura?",
-              "tipoPergunta": 1,
-              "obrigatorio": 1,
-              "respostas": [
-                { "id": 40301, "dataHoraAlteracao": "2026-10-08T10:00:00Z", "idPergunta": 403, "textoResposta": "Não", "ordemExibicao": 1 },
-                {
-                  "id": 40302,
-                  "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                  "idPergunta": 403,
-                  "textoResposta": "Sim",
-                  "ordemExibicao": 2,
-                  "pergunta": {
-                    "id": 40303,
-                    "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                    "principal": 0,
-                    "textoPergunta": "Informe a medida de cintura em cm",
-                    "tipoPergunta": 3,
-                    "obrigatorio": 1,
-                    "respostas": []
-                  }
-                }
-              ]
             },
             {
               "id": 404,
@@ -445,47 +409,6 @@ function PreConsultaApp() {
               "tipoPergunta": 3,
               "obrigatorio": 1,
               "respostas": []
-            },
-            {
-              "id": 506,
-              "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-              "principal": 1,
-              "textoPergunta": "Você quase sempre ou sempre come entre as principais refeições?",
-              "tipoPergunta": 1,
-              "obrigatorio": 1,
-              "respostas": [
-                { "id": 50601, "dataHoraAlteracao": "2026-10-08T10:00:00Z", "idPergunta": 506, "textoResposta": "Não", "ordemExibicao": 1 },
-                {
-                  "id": 50602,
-                  "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                  "idPergunta": 506, "textoResposta": "Sim, entre o café da manhã e o almoço",
-                  "ordemExibicao": 2,
-                  "pergunta": {
-                    "id": 50605,
-                    "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                    "principal": 0,
-                    "textoPergunta": "O que costuma comer entre as refeições?",
-                    "tipoPergunta": 3,
-                    "obrigatorio": 1,
-                    "respostas": []
-                  }
-                },
-                {
-                  "id": 50603,
-                  "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                  "idPergunta": 506, "textoResposta": "Sim, entre o almoço e a janta",
-                  "ordemExibicao": 2,
-                  "pergunta": {
-                    "id": 50605,
-                    "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-                    "principal": 0,
-                    "textoPergunta": "O que costuma comer entre as refeições?",
-                    "tipoPergunta": 3,
-                    "obrigatorio": 1,
-                    "respostas": []
-                  }
-                }
-              ]
             },
             {
               "id": 507,
@@ -652,15 +575,6 @@ function PreConsultaApp() {
               ]
             },
             {
-              "id": 702,
-              "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-              "principal": 1,
-              "textoPergunta": "Quantas horas costuma dormir por noite?",
-              "tipoPergunta": 3,
-              "obrigatorio": 1,
-              "respostas": []
-            },
-            {
               "id": 704,
               "dataHoraAlteracao": "2026-10-08T10:00:00Z",
               "principal": 1,
@@ -790,18 +704,6 @@ function PreConsultaApp() {
               "tipoPergunta": 3,
               "obrigatorio": 1,
               "respostas": []
-            },
-            {
-              "id": 902,
-              "dataHoraAlteracao": "2026-10-08T10:00:00Z",
-              "principal": 1,
-              "textoPergunta": "Possui exames laboratoriais recentes?",
-              "tipoPergunta": 1,
-              "obrigatorio": 1,
-              "respostas": [
-                { "id": 90201, "dataHoraAlteracao": "2026-10-08T10:00:00Z", "idPergunta": 902, "textoResposta": "Não", "ordemExibicao": 1 },
-                { "id": 90202, "dataHoraAlteracao": "2026-10-08T10:00:00Z", "idPergunta": 902, "textoResposta": "Sim", "ordemExibicao": 2 }
-              ]
             }
           ]
         },
