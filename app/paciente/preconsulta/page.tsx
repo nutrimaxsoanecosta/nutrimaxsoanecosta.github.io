@@ -1056,7 +1056,7 @@ function PreConsultaApp() {
             mensagemFormatada += `*${categoriaAtual}*\n\n`;
           }
 
-          mensagemFormatada += `* *${perg.textoPergunta}*\n   ✍️_${(textoResp || '').trim()}_\n\n`;
+          mensagemFormatada += `* *${perg.textoPergunta}*\n   ✍️ _${(textoResp || '').trim()}_\n\n`;
         }
       }
     });
