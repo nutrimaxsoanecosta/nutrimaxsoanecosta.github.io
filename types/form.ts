@@ -7,6 +7,8 @@ export enum TipoPerguntaEnum {
   OBJETIVA = 1,
   MULTIPLA = 2,
   TEXTO = 3,
+  DATA = 4,      // Novo tipo
+  TELEFONE = 5,  // Novo tipo
 }
 
 export interface Perfil extends BaseEntity {
