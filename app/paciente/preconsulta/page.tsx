@@ -405,7 +405,7 @@ function PreConsultaApp() {
               "id": 505,
               "dataHoraAlteracao": "2026-10-08T10:00:00Z",
               "principal": 1,
-              "textoPergunta": "Você faz outra refeição após o jantar? O que você costuma comer poucas horas antes de dormir?",
+              "textoPergunta": "Você costuma comer algo depois do jantar? Se sim, o que você costuma comer?",
               "tipoPergunta": 3,
               "obrigatorio": 1,
               "respostas": []
@@ -432,7 +432,7 @@ function PreConsultaApp() {
               "id": 509,
               "dataHoraAlteracao": "2026-10-08T10:00:00Z",
               "principal": 1,
-              "textoPergunta": "Costuma consumir doces, refrigerantes, bebidas alcoólicas ou fast-food?",
+              "textoPergunta": "Costuma consumir doces, biscoitos, refrigerantes, bebidas alcoólicas ou fast-food/delivery?",
               "tipoPergunta": 1,
               "obrigatorio": 1,
               "respostas": [
